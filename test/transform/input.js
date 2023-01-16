@@ -3,6 +3,7 @@ const div = <div />;
 const div2 = (
   <div a="a" b={"b"}>
     <p>c</p>
+    {}
   </div>
 );
 

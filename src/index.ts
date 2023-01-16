@@ -1,53 +1,70 @@
 import ESXToken from "@ungap/esxtoken";
+// @ts-ignore
 import syntaxJSX from "@babel/plugin-syntax-jsx";
 import { getInlinePolyfill, getExternalPolyfill } from "./polyfill.js";
+import type { Visitor, NodePath } from "@babel/core";
+import type {
+  Program,
+  JSXElement,
+  JSXFragment,
+  JSXNamespacedName,
+  Expression,
+  JSXMemberExpression,
+  JSXIdentifier,
+  Identifier,
+  MemberExpression,
+  StringLiteral,
+  JSXOpeningElement, JSXAttribute, JSXSpreadAttribute, NullLiteral
+} from "@babel/types";
 
-/**
- * @param {import("@babel/core")} babelApi
- */
-export default function ({ template, types: t }, { polyfill = "import" } = {}) {
+export default function(
+  { template, types: t }: typeof import("@babel/core"),
+  { polyfill = "import" }: { polyfill?: "import" | "inline" | false } = {}
+) {
   if (polyfill !== false && polyfill !== "inline" && polyfill !== "import") {
     throw new Error(
       `The .polyfill option must be one of: false, "inline", "import".`
     );
   }
 
-  /** @type {import("@babel/core").Visitor} */
-  const visitor = {
+  const visitor: Visitor = {
     JSXElement(path) {
       path.replaceWith(transformElement(path, buildReference(path)));
     },
     JSXFragment(path) {
       path.replaceWith(transformFragment(path, buildReference(path)));
-    },
+    }
   };
 
   const polyfillInjected = new WeakSet();
 
-  const getChildren = path => path.get("children").map(transformChild).filter(Boolean);
+  const getChildren = (path: NodePath<JSXElement | JSXFragment>): Expression[] =>
+    path.get("children").map(transformChild).filter((n): n is Expression => !!n);
 
-  const getDirectMember = nmsp => t.memberExpression.apply(
-    t, nmsp.split(".").map(x => t.identifier(x))
+  const getDirectMember = (nmsp: string) => t.memberExpression.apply(
+    t, nmsp.split(".").map(x => t.identifier(x)) as any
   );
 
-  const interpolation = value => invoke("ESXToken.b", t.numericLiteral(ESXToken.INTERPOLATION), value);
+  const interpolation = (value: Expression) => invoke("ESXToken.b", t.numericLiteral(ESXToken.INTERPOLATION), value);
 
-  const invoke = (nmsp, ...args) => t.callExpression(getDirectMember(nmsp), args);
+  const invoke = (nmsp: string, ...args: Expression[]) =>
+    t.callExpression(getDirectMember(nmsp), args);
 
-  const jsx2name = node =>t.isJSXMemberExpression(node) ?
-    [jsx2name(node.object), jsx2name(node.property)].join(".") :
-    node.name;
+  const jsx2name = (node: JSXMemberExpression | JSXIdentifier | JSXNamespacedName): string =>
+    t.isJSXMemberExpression(node) ?
+      [jsx2name(node.object), jsx2name(node.property)].join(".") :
+      node.name as string;
 
-  function buildReference({scope}) {
+  function buildReference({ scope }: NodePath<JSXElement | JSXFragment>) {
     const ref = scope.generateUidIdentifier("templateReference");
     const programScope = scope.getProgramParent();
     programScope.push({ id: t.cloneNode(ref), init: t.objectExpression([]) });
 
-    ensurePolyfill(programScope.path);
+    ensurePolyfill(programScope.path as NodePath<Program>);
     return ref;
   }
 
-  function ensurePolyfill(programPath) {
+  function ensurePolyfill(programPath: NodePath<Program>) {
     if (!polyfill || polyfillInjected.has(programPath.node)) return;
     polyfillInjected.add(programPath.node);
 
@@ -60,12 +77,11 @@ export default function ({ template, types: t }, { polyfill = "import" } = {}) {
     );
   }
 
-  function transformElement(path, ref) {
-    /** @type {import("@babel/types").JSXElement} */
+  function transformElement(path: NodePath<JSXElement>, ref: Identifier | NullLiteral) {
     const node = path.node;
     const jsxElementName = node.openingElement.name;
 
-    let type = 0;
+    let type: number;
     let element;
     if (
       t.isJSXNamespacedName(jsxElementName) ||
@@ -94,7 +110,7 @@ export default function ({ template, types: t }, { polyfill = "import" } = {}) {
     );
   }
 
-  function transformFragment(path, ref) {
+  function transformFragment(path: NodePath<JSXFragment>, ref: Identifier | NullLiteral) {
     const children = getChildren(path);
     return t.newExpression(
       t.identifier("ESXToken"),
@@ -107,11 +123,7 @@ export default function ({ template, types: t }, { polyfill = "import" } = {}) {
     );
   }
 
-  /**
-   * @param {import("@babel/types").JSXIdentifier | import("@babel/types").JSXMemberExpression} node
-   * @returns {import("@babel/types").Identifier | import("@babel/types").MemberExpression}
-   */
-  function jsxToJS(node) {
+  function jsxToJS(node: JSXIdentifier | JSXMemberExpression): MemberExpression | Identifier {
     if (t.isJSXMemberExpression(node)) {
       return t.inherits(
         t.memberExpression(jsxToJS(node.object), jsxToJS(node.property)),
@@ -121,19 +133,14 @@ export default function ({ template, types: t }, { polyfill = "import" } = {}) {
     return t.inherits(t.identifier(node.name), node);
   }
 
-  /**
-   * @param {import("@babel/types").JSXIdentifier | import("@babel/types").JSXNamespacedName} node
-   * @returns {import("@babel/types").StringLiteral}
-   */
-  function jsxToString(node) {
+  function jsxToString(node: JSXIdentifier | JSXNamespacedName): StringLiteral {
     let str = t.isJSXNamespacedName(node)
       ? `${node.namespace.name}:${node.name.name}`
       : node.name;
     return t.inherits(t.stringLiteral(str), node);
   }
 
-  function transformAttributesList(path) {
-    /** @type {import("@babel/types").JSXOpeningElement} */
+  function transformAttributesList(path: NodePath<JSXOpeningElement>) {
     const node = path.node;
 
     return node.attributes.length === 0 ?
@@ -141,21 +148,21 @@ export default function ({ template, types: t }, { polyfill = "import" } = {}) {
       t.arrayExpression(path.get("attributes").map(transformAttribute));
   }
 
-  function transformAttribute(path) {
-    /** @type {import("@babel/types").JSXAttribute | import("@babel/types").JSXSpreadAttribute} */
+  function transformAttribute(path: NodePath<JSXAttribute | JSXSpreadAttribute>) {
     const node = path.node;
 
     if (t.isJSXSpreadAttribute(node)) {
       return t.inherits(interpolation(node.argument), node);
     }
 
-    let dynamic = false, name, value;
+    let dynamic = false, name, value: Expression;
     if (t.isJSXExpressionContainer(node.value)) {
       dynamic = true;
       name = jsxToString(node.name);
-      value = node.value.expression;
+      //empty expression in arguments is syntax error in babel jsx parser
+      value = node.value.expression as Expression;
     } else if (t.isJSXElement(node.value) || t.isJSXFragment(node.value)) {
-      throw path
+      throw (path as NodePath<JSXAttribute>)
         .get("value")
         .buildCodeFrameError(
           "JSX elements are not supported as static attributes. Please wrap it in { }."
@@ -174,14 +181,15 @@ export default function ({ template, types: t }, { polyfill = "import" } = {}) {
     );
   }
 
-  function transformChild(path) {
-    /** @type {import("@babel/types").JSXElement["children"][number]} */
+
+  function transformChild(path: NodePath<JSXElement["children"][number]>): Expression | null {
     const node = path.node;
 
-    if (t.isJSXExpressionContainer(node))
+    if (t.isJSXExpressionContainer(node)) {
+      if (t.isJSXEmptyExpression(node.expression))
+        return null;
       return interpolation(node.expression);
-
-    if (t.isJSXSpreadChild(node)) {
+    } else if (t.isJSXSpreadChild(node)) {
       // <div>{...foo}</div>
       throw path.buildCodeFrameError(
         "Spread children are not supported. Please delete the ... token."
@@ -193,11 +201,17 @@ export default function ({ template, types: t }, { polyfill = "import" } = {}) {
       }
       return invoke("ESXToken.b", t.numericLiteral(ESXToken.STATIC), t.stringLiteral(node.value));
     } else if (t.isJSXElement(node)) {
-      return transformElement(path, t.nullLiteral());
+      return transformElement(path as NodePath<JSXElement>, t.nullLiteral());
     } else if (t.isJSXFragment(node)) {
-      return transformFragment(path, t.nullLiteral());
+      return transformFragment(path as NodePath<JSXFragment>, t.nullLiteral());
     }
+
+    assertUnreachable(node);
   }
 
   return { visitor, inherits: syntaxJSX.default };
+}
+
+function assertUnreachable(x: never): never {
+  throw new Error(`Should be unreachable, but got ${x}`);
 }

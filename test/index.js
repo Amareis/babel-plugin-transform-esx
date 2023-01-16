@@ -2,7 +2,7 @@ import fs from "fs";
 import assert from "assert";
 import * as prettier from "prettier";
 import babel from "@babel/core";
-import thisPlugin from "../src/index.js";
+import thisPlugin from "../dist/index.js";
 
 // TODO: find a way to use the source instead of manually maintain its parsed outcome
 // import ESXTokenSource from "../src/inline.js";
@@ -160,8 +160,24 @@ test("newlines in children are collapsed", () => {
 test("supports xml namespaces", () => {
   const elem = <xml:svg xmlns:xlink="http://www.w3.org/1999/xlink" />;
 
+  assert.strictEqual(elem.type, ESXToken.ELEMENT);
   assert.strictEqual(elem.value, "xml:svg");
   assert.strictEqual(elem.attributes[0].name, "xmlns:xlink");
+});
+
+test("supports member expressions", () => {
+  const some = {Elem: {test: {}}}
+  const elem = <some.Elem.test />
+
+  assert.strictEqual(elem.type, ESXToken.COMPONENT);
+  assert.strictEqual(elem.value, some.Elem.test);
+});
+
+test("supports dashed names", () => {
+  const elem = <some-Elem_test />
+
+  assert.strictEqual(elem.type, ESXToken.ELEMENT);
+  assert.strictEqual(elem.value, 'some-Elem_test');
 });
 
 test("spread props are represented as interpolations", () => {
