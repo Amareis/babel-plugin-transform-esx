@@ -63,6 +63,12 @@ export default function(
   };
 }
 
+/* todo:
+hoist root tags
+detect static - null, bool, number, string
+const vars of static and arrow function??
+ */
+
 function jsxToString(node: JSXIdentifier | JSXNamespacedName): StringLiteral {
   let str = t.isJSXNamespacedName(node)
     ? `${node.namespace.name}:${node.name.name}`
@@ -86,7 +92,7 @@ const getChildren = (path: NodePath<JSXElement | JSXFragment>): Expression[] =>
 const newSlot = (dynamic: boolean, value: Expression) =>
   t.newExpression(
     t.identifier("ESXSlot"),
-    [t.booleanLiteral(dynamic), value]
+    dynamic ? [] : [value]
   );
 
 function transformElement(path: NodePath<JSXElement>) {
@@ -102,7 +108,8 @@ function transformElement(path: NodePath<JSXElement>) {
     dynamic = false;
     element = jsxToString(jsxElementName);
   } else {
-    dynamic = true;
+    // dynamic = true;
+    dynamic = false; //temporary
     element = jsxToJS(jsxElementName);
   }
 

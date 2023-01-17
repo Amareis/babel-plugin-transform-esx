@@ -1,7 +1,7 @@
 export class ESXSlot {
   constructor(
-    readonly isDynamic: boolean,
-    private readonly _value: unknown = undefined
+    private readonly _value: unknown = undefined,
+    readonly isDynamic: boolean = _value === undefined
   ) {
     if (isDynamic && _value !== undefined)
       throw new TypeError("Dynamic slot value always must be undefined");
@@ -87,7 +87,7 @@ export class ESXInstance {
   private bindSlot(slot: ESXSlot): ESXSlot {
     if (!slot.isDynamic)
       return slot;
-    return new ESXSlot(false, this.getDynamicSlotValue(slot));
+    return new ESXSlot(this.getDynamicSlotValue(slot), false);
   }
 
   private bindAttribute(attr: ESXAttribute): ESXAttribute {
