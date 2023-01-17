@@ -1,4 +1,4 @@
-var _esx = new ESXInstance(new ESXTag(new ESXSlot("div"), [], [])),
+var _esx = new ESXInstance(new ESXTag(new ESXSlot("div"))),
   _root = /*1 dynamics*/ new ESXTag(
     new ESXSlot("div"),
     [
@@ -27,14 +27,10 @@ var _esx = new ESXInstance(new ESXTag(new ESXSlot("div"), [], [])),
     [],
     [/*1*/ new ESXSlot()]
   ),
-  _root4 = /*2 dynamics*/ new ESXTag(
-    /*1*/ new ESXSlot(),
-    [
-      new ESXAttribute("a", new ESXSlot("a")),
-      new ESXAttribute(null, /*2*/ new ESXSlot()),
-    ],
-    []
-  );
+  _root4 = /*2 dynamics*/ new ESXTag(/*1*/ new ESXSlot(), [
+    new ESXAttribute("a", new ESXSlot("a")),
+    new ESXAttribute(null, /*2*/ new ESXSlot()),
+  ]);
 // noinspection ES6UnusedImports
 import { ESXSlot, ESXAttribute, ESXTag, ESXInstance } from "../../dist/esx.js";
 const div = _esx;

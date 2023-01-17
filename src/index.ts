@@ -143,10 +143,10 @@ const isElementPath = (path: JsxPath): path is NodePath<JSXElement> =>
   t.isJSXElement(path.node);
 
 const transformAttributesList = (path: NodePath<JSXOpeningElement>, dynamics: Expression[]) =>
-  t.arrayExpression(path.get("attributes").map(a => transformAttribute(a, dynamics)));
+  path.get("attributes").map(a => transformAttribute(a, dynamics));
 
 function transformElement(path: JsxPath, dynamics: Expression[]): Expression {
-  let elem, attrs;
+  let elem, attrs: Expression[] = [];
   if (isElementPath(path)) {
     const { node } = path;
     const jsxElementName = node.openingElement.name;
@@ -164,18 +164,16 @@ function transformElement(path: JsxPath, dynamics: Expression[]): Expression {
     attrs = transformAttributesList(path.get("openingElement"), dynamics);
   } else {
     elem = t.nullLiteral();
-    attrs = t.arrayExpression();
   }
   const children = getChildren(path, dynamics);
 
-  return t.newExpression(
-    t.identifier("ESXTag"),
-    [
-      elem,
-      attrs,
-      t.arrayExpression(children)
-    ]
-  );
+  let args = [];
+  if (children.length)
+    args.push(t.arrayExpression(attrs), t.arrayExpression(children));
+  else if (attrs.length)
+    args.push(t.arrayExpression(attrs));
+
+  return t.newExpression(t.identifier("ESXTag"), [elem, ...args]);
 }
 
 const newAttr = (name: string | null, value: Expression, dynamics: Expression[]) =>
