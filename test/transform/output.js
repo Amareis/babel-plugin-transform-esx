@@ -2,7 +2,7 @@
 import { ESXSlot, ESXAttribute, ESXTag, ESXInstance } from "../../dist/esx.js";
 const div = new ESXInstance(new ESXTag(new ESXSlot("div"), [], []), []);
 const div2 = new ESXInstance(
-  new ESXTag(
+  /*1 dynamics*/ new ESXTag(
     new ESXSlot("div"),
     [
       new ESXAttribute("id", new ESXSlot("a")),
@@ -11,44 +11,49 @@ const div2 = new ESXInstance(
     [
       new ESXTag(new ESXSlot("p"), [], [new ESXSlot("c")]),
       new ESXSlot("\n    asdasd\n    fthertghfg\n    "),
-      new ESXSlot(div),
+      /*1*/ new ESXSlot(),
     ]
   ),
-  []
+  [div]
 );
 function MyComponent(...args) {
   return new ESXInstance(
-    new ESXTag(
+    /*2 dynamics*/ new ESXTag(
       null,
       [],
       [
         new ESXSlot("A"),
         new ESXSlot(","),
         new ESXSlot("B"),
-        new ESXSlot(div2),
-        new ESXSlot(
-          args.map(
-            (a) =>
-              new ESXInstance(
-                new ESXTag(new ESXSlot("div"), [], [new ESXSlot(a)]),
-                []
-              )
-          )
-        ),
+        /*1*/ new ESXSlot(),
+        /*2*/ new ESXSlot(),
       ]
     ),
-    []
+    [
+      div2,
+      args.map(
+        (a) =>
+          new ESXInstance(
+            /*1 dynamics*/ new ESXTag(
+              new ESXSlot("div"),
+              [],
+              [/*1*/ new ESXSlot()]
+            ),
+            [a]
+          )
+      ),
+    ]
   );
 }
 export const component = (props) =>
   new ESXInstance(
-    new ESXTag(
-      new ESXSlot(MyComponent),
+    /*2 dynamics*/ new ESXTag(
+      /*1*/ new ESXSlot(),
       [
         new ESXAttribute("a", new ESXSlot("a")),
-        new ESXAttribute(null, new ESXSlot(props)),
+        new ESXAttribute(null, /*2*/ new ESXSlot()),
       ],
       []
     ),
-    []
+    [MyComponent, props]
   );

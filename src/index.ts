@@ -12,7 +12,8 @@ import type {
   Identifier,
   MemberExpression,
   StringLiteral,
-  JSXOpeningElement, JSXAttribute, JSXSpreadAttribute
+  JSXOpeningElement, JSXAttribute, JSXSpreadAttribute,
+  NumericLiteral, NullLiteral, BooleanLiteral, BigIntLiteral, DecimalLiteral
 } from "@babel/types";
 import * as t from "@babel/types";
 
@@ -54,10 +55,10 @@ export default function(
     inherits: syntaxJSX.default,
     visitor: {
       JSXElement(path) {
-        transform(path)
+        transform(path);
       },
       JSXFragment(path) {
-        transform(path)
+        transform(path);
       }
     }
   };
@@ -65,20 +66,23 @@ export default function(
 
 /* todo:
 hoist root tags
-detect static - null, bool, number, string
-const vars of static and arrow function??
+✅ detect static - null, bool, number, string
  */
 
 type JsxPath = NodePath<JSXElement | JSXFragment>
 
 function transform(path: JsxPath) {
-  path.replaceWith(newInstance(transformElement(path)));
+  const dynamics: Expression[] = [];
+  const tag = transformElement(path, dynamics);
+  if (dynamics.length)
+    t.addComment(tag, "leading", `${dynamics.length} dynamics`);
+  path.replaceWith(newInstance(tag, dynamics));
 }
 
-const newInstance = (e: Expression) =>
+const newInstance = (e: Expression, dynamics: Expression[]) =>
   t.newExpression(
     t.identifier("ESXInstance"),
-    [e, t.arrayExpression()]
+    [e, t.arrayExpression(dynamics)]
   );
 
 function jsxToString(node: JSXIdentifier | JSXNamespacedName): StringLiteral {
@@ -98,44 +102,62 @@ function jsxToJS(node: JSXIdentifier | JSXMemberExpression): MemberExpression | 
   return t.inherits(t.identifier(node.name), node);
 }
 
-const getChildren = (path: NodePath<JSXElement | JSXFragment>): Expression[] =>
-  path.get("children").map(transformChild).filter((n): n is Expression => !!n);
+const getChildren = (path: NodePath<JSXElement | JSXFragment>, dynamics: Expression[]): Expression[] =>
+  path.get("children").map(c => transformChild(c, dynamics)).filter((n): n is Expression => !!n);
 
-const newSlot = (dynamic: boolean, value: Expression) =>
-  t.newExpression(
+type ConstLiteral = StringLiteral | NumericLiteral | NullLiteral | BooleanLiteral | BigIntLiteral | DecimalLiteral
+
+const isConstLiteral = (e: Expression): e is ConstLiteral =>
+  t.isStringLiteral(e) || t.isNumericLiteral(e) || t.isNullLiteral(e)
+  || t.isBooleanLiteral(e) || t.isBigIntLiteral(e) || t.isDecimalLiteral(e);
+
+function constSlot(expr?: ConstLiteral) {
+  return t.newExpression(
     t.identifier("ESXSlot"),
-    dynamic ? [] : [value]
+    expr ? [expr] : []
   );
+}
+
+function newSlot(expr: Expression, dynamics: Expression[]) {
+  //possibly we can also count const vars of const literals or of top-level arrow functions
+  //but, it's not clear how it should be hoisted now
+  const dynamic = !isConstLiteral(expr);
+  const e = constSlot(dynamic ? undefined : expr);
+  if (dynamic) {
+    dynamics.push(expr);
+    t.addComment(e, "leading", dynamics.length.toString());
+  }
+  return e;
+}
 
 const isElementPath = (path: JsxPath): path is NodePath<JSXElement> =>
-  t.isJSXElement(path.node)
+  t.isJSXElement(path.node);
 
-function transformElement(path: JsxPath) {
-  let elem, attrs
+const transformAttributesList = (path: NodePath<JSXOpeningElement>, dynamics: Expression[]) =>
+  t.arrayExpression(path.get("attributes").map(a => transformAttribute(a, dynamics)));
+
+function transformElement(path: JsxPath, dynamics: Expression[]): Expression {
+  let elem, attrs;
   if (isElementPath(path)) {
     const { node } = path;
     const jsxElementName = node.openingElement.name;
 
-    let dynamic: boolean;
     let element;
     if (
       t.isJSXNamespacedName(jsxElementName) ||
       (t.isJSXIdentifier(jsxElementName) && /^[a-z]/.test(jsxElementName.name))
     ) {
-      dynamic = false;
       element = jsxToString(jsxElementName);
     } else {
-      // dynamic = true;
-      dynamic = false; //temporary
       element = jsxToJS(jsxElementName);
     }
-    elem = newSlot(dynamic, element)
-    attrs = transformAttributesList(path.get("openingElement"));
+    elem = newSlot(element, dynamics);
+    attrs = transformAttributesList(path.get("openingElement"), dynamics);
   } else {
-    elem = t.nullLiteral()
-    attrs = t.arrayExpression()
+    elem = t.nullLiteral();
+    attrs = t.arrayExpression();
   }
-  const children = getChildren(path);
+  const children = getChildren(path, dynamics);
 
   return t.newExpression(
     t.identifier("ESXTag"),
@@ -147,26 +169,18 @@ function transformElement(path: JsxPath) {
   );
 }
 
-function transformAttributesList(path: NodePath<JSXOpeningElement>) {
-  const node = path.node;
-
-  return node.attributes.length === 0
-    ? t.arrayExpression()
-    : t.arrayExpression(path.get("attributes").map(transformAttribute));
-}
-
-const newAttr = (name: string | null, value: Expression) =>
+const newAttr = (name: string | null, value: Expression, dynamics: Expression[]) =>
   t.newExpression(
     t.identifier("ESXAttribute"),
-    [name ? t.stringLiteral(name) : t.nullLiteral(), newSlot(false, value)]
+    [name ? t.stringLiteral(name) : t.nullLiteral(), newSlot(value, dynamics)]
   );
 
-function transformAttribute(path: NodePath<JSXAttribute | JSXSpreadAttribute>) {
+function transformAttribute(path: NodePath<JSXAttribute | JSXSpreadAttribute>, dynamics: Expression[]) {
   const node = path.node;
 
   if (t.isJSXSpreadAttribute(node)) {
     // {...obj}
-    return t.inherits(newAttr(null, node.argument), node);
+    return t.inherits(newAttr(null, node.argument, dynamics), node);
   }
 
   let name: StringLiteral, value: Expression;
@@ -189,18 +203,18 @@ function transformAttribute(path: NodePath<JSXAttribute | JSXSpreadAttribute>) {
   }
 
   return t.inherits(
-    newAttr(name.value, value),
+    newAttr(name.value, value, dynamics),
     node
   );
 }
 
-function transformChild(path: NodePath<JSXElement["children"][number]>): Expression | null {
+function transformChild(path: NodePath<JSXElement["children"][number]>, dynamics: Expression[]): Expression | null {
   const node = path.node;
 
   if (t.isJSXExpressionContainer(node)) {
     if (t.isJSXEmptyExpression(node.expression))
       return null;
-    return newSlot(false, node.expression);
+    return newSlot(node.expression, dynamics);
   } else if (t.isJSXSpreadChild(node)) {
     // <div>{...foo}</div>
     throw path.buildCodeFrameError(
@@ -211,9 +225,9 @@ function transformChild(path: NodePath<JSXElement["children"][number]>): Express
     if (node.value.trim() === "" && /[\r\n]/.test(node.value)) {
       return null;
     }
-    return newSlot(false, t.stringLiteral(node.value));
+    return constSlot(t.stringLiteral(node.value));
   } else if (t.isJSXElement(node) || t.isJSXFragment(node)) {
-    return transformElement(path as JsxPath);
+    return transformElement(path as JsxPath, dynamics);
   }
 
   assertUnreachable(node);
