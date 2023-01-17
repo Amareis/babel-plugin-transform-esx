@@ -53,8 +53,7 @@ export default function(
 }
 
 class Dynamics {
-  refs: Identifier[] = [];
-  inits: Expression[] = [];
+  private inits: Expression[] = [];
 
   private tagRefs: Identifier[][] = [];
 
@@ -65,15 +64,10 @@ class Dynamics {
     const ref = this.scope.generateUidIdentifier("dyn");
     this.scope.push({ id: t.cloneNode(ref) });
 
-    this.refs.push(t.cloneNode(ref));
     this.tagRefs[0].push(t.cloneNode(ref));
 
     this.inits.push(init);
     return t.assignmentExpression("=", ref, slot);
-  }
-
-  get length() {
-    return this.refs.length;
   }
 
   beginTag() {
@@ -89,40 +83,46 @@ class Dynamics {
     return refs;
   }
 
-  checkBalance() {
+  hardEnd(): {refs: Identifier[], inits: Expression[]} {
+    const refs = this.endTag()
     if (this.tagRefs.length)
       throw new Error("Unbalanced tags");
+    const inits = this.inits
+    if (refs.length !== inits.length)
+      throw new Error("Dynamics invariant error");
+    this.inits = []
+    return {refs, inits}
   }
 }
 
 type JsxPath = NodePath<JSXElement | JSXFragment>
 
 function transformRoot(path: JsxPath) {
-  const { scope } = path;
-  const programScope = scope.getProgramParent();
+  const scope = path.scope.getProgramParent();
 
-  const dynamics = new Dynamics(programScope);
+  const dynamics = new Dynamics(scope);
+  dynamics.beginTag()
   const tag = transformElement(path, dynamics);
-  dynamics.checkBalance();
+  const {refs, inits} = dynamics.hardEnd();
 
   let esx;
-  if (dynamics.length) {
+  if (refs.length) {
     const ref = scope.generateUidIdentifier("root");
-    programScope.push({ id: t.cloneNode(ref), init: tag });
-    esx = newInstance(ref, dynamics);
+    scope.push({ id: t.cloneNode(ref), init: tag });
+    esx = newInstance(ref, inits);
   } else {
     const ref = scope.generateUidIdentifier("esx");
-    programScope.push({ id: t.cloneNode(ref), init: newInstance(tag, dynamics) });
+    scope.push({ id: t.cloneNode(ref), init: newInstance(tag) });
     esx = ref;
   }
 
   path.replaceWith(esx);
 }
 
-const newInstance = (e: Expression, dynamics: Dynamics) =>
+const newInstance = (e: Expression, inits?: Expression[]) =>
   t.newExpression(
     t.identifier("ESX"),
-    !dynamics.length ? [e] : [e, t.arrayExpression(dynamics.inits)]
+    !inits ? [e] : [e, t.arrayExpression(inits)]
   );
 
 function jsxToString(node: JSXIdentifier | JSXNamespacedName): StringLiteral {
