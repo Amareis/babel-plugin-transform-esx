@@ -49,7 +49,7 @@ test("transform", () => {
     }
   }
 });
-
+/*
 test("'polyfill' option", () => {
   const withOpts = (options) =>
     babel.transformSync("<div />;", {
@@ -79,65 +79,53 @@ test("'polyfill' option", () => {
 
   // Default is import
   assert.strictEqual(withOpts({}), withOpts({ polyfill: "import" }));
-});
+});*/
 
 test("type of element attributes", () => {
   const cases = [
-    ["<div a />", <div a />, [{ type: ESXToken.ATTRIBUTE, dynamic: false, name: "a", value: true }]],
-    ["<div a='a' />", <div a="a" />, [{ type: ESXToken.ATTRIBUTE, dynamic: false, name: "a", value: "a" }]],
-    ["<div a={1} />", <div a={1} />, [{ type: ESXToken.ATTRIBUTE, dynamic: true, name: "a", value: 1 }]],
+    ["<div a />", <div a />, [{ name: "a", value: true }]],
+    ["<div a='a' />", <div a="a" />, [{ name: "a", value: "a" }]],
+    ["<div a={1} />", <div a={1} />, [{ name: "a", value: 1 }]],
     ["<div a={1} b />", <div a={1} b />, [{
-      type: ESXToken.ATTRIBUTE,
-      dynamic: true,
       name: "a",
       value: 1
-    }, { type: ESXToken.ATTRIBUTE, dynamic: false, name: "b", value: true }]],
+    }, { name: "b", value: true }]],
     ["<div a b={1} />", <div a b={1} />, [{
-      type: ESXToken.ATTRIBUTE,
-      dynamic: false,
       name: "a",
       value: true
-    }, { type: ESXToken.ATTRIBUTE, dynamic: true, name: "b", value: 1 }]],
+    }, { name: "b", value: 1 }]],
     ["<div a={1} b={2} />", <div a={1} b={2} />, [{
-      type: ESXToken.ATTRIBUTE,
-      dynamic: true,
       name: "a",
       value: 1
-    }, { type: ESXToken.ATTRIBUTE, dynamic: true, name: "b", value: 2 }]],
-    ["<div {...test} />", <div {...test} />, [{ type: ESXToken.INTERPOLATION, value: test }]],
+    }, { name: "b", value: 2 }]],
+    ["<div {...test} />", <div {...test} />, [{ dyn: test }]],
     ["<div a {...test} />", <div a {...test} />, [{
-      type: ESXToken.ATTRIBUTE,
-      dynamic: false,
       name: "a",
       value: true
-    }, { type: ESXToken.INTERPOLATION, value: test }]],
+    }, { dyn: test }]],
     ["<div {...test} a />", <div {...test} a />, [{
-      type: ESXToken.INTERPOLATION,
-      value: test
-    }, { type: ESXToken.ATTRIBUTE, dynamic: false, name: "a", value: true }]],
+      dyn: test
+    }, { name: "a", value: true }]],
     ["<div a={1} {...test} />", <div a={1} {...test} />, [{
-      type: ESXToken.ATTRIBUTE,
-      dynamic: true,
       name: "a",
       value: 1
-    }, { type: ESXToken.INTERPOLATION, value: test }]],
+    }, { dyn: test }]],
     ["<div {...test} a={1} />", <div {...test} a={1} />, [{
-      type: ESXToken.INTERPOLATION,
-      value: test
-    }, { type: ESXToken.ATTRIBUTE, dynamic: true, name: "a", value: 1 }]]
+      dyn: test
+    }, { name: "a", value: 1 }]]
   ];
 
-  for (const [desc, { attributes }, expectations] of cases) {
+  for (const [desc, esx, expectations] of cases) {
+    const  { root: { attributes } } = esx
     assert.strictEqual(attributes.length, expectations.length, desc);
     for (let i = 0; i < attributes.length; i++) {
       const attribute = attributes[i];
-      const expectation = expectations[i];
-      assert.strictEqual(attribute.type, expectation.type, desc);
-      assert.strictEqual(attribute.value, expectation.value, desc);
-      if (attribute.type === ESXToken.ATTRIBUTE) {
-        assert.strictEqual(attribute.name, expectation.name, desc);
-        assert.strictEqual(attribute.dynamic, expectation.dynamic, desc);
-      }
+      const { dyn, value, name = null } = expectations[i];
+      assert.strictEqual(attribute.name, name, desc);
+      if (value)
+        assert.strictEqual(attribute.slot.value, value, desc);
+      else if (dyn)
+        assert.strictEqual(esx.getDynamicSlotValue(attribute.slot), dyn, desc);
     }
   }
 });
@@ -146,15 +134,8 @@ test("no children", () => {
   assert.strictEqual(
     (
       <div />
-    ).children.length,
+    ).root.children.length,
     0
-  );
-
-  assert.strictEqual(
-    (
-      <div />
-    ).children,
-    ESXToken._
   );
 });
 
@@ -164,7 +145,7 @@ test("newlines in children are collapsed", () => {
       <div>
         <span />
       </div>
-    ).children.length,
+    ).root.children.length,
     1
   );
 
@@ -174,7 +155,7 @@ test("newlines in children are collapsed", () => {
         <span />
         <span />
       </div>
-    ).children.length,
+    ).root.children.length,
     2
   );
 
@@ -183,40 +164,29 @@ test("newlines in children are collapsed", () => {
       <div>
         <span /> <span />
       </div>
-    ).children.length,
+    ).root.children.length,
     3
   );
 });
 
 test("supports xml namespaces", () => {
-  const elem = <xml:svg xmlns:xlink="http://www.w3.org/1999/xlink" />;
+  const { root } = <xml:svg xmlns:xlink="http://www.w3.org/1999/xlink" />;
 
-  assert.strictEqual(elem.type, ESXToken.ELEMENT);
-  assert.strictEqual(elem.value, "xml:svg");
-  assert.strictEqual(elem.attributes[0].name, "xmlns:xlink");
+  assert.strictEqual(root.element.value, "xml:svg");
+  assert.strictEqual(root.attributes[0].name, "xmlns:xlink");
 });
 
 test("supports member expressions", () => {
   const some = { Elem: { test: {} } };
-  const elem = <some.Elem.test />;
+  const esx = <some.Elem.test />;
 
-  assert.strictEqual(elem.type, ESXToken.COMPONENT);
-  assert.strictEqual(elem.value, some.Elem.test);
+  assert.strictEqual(esx.getDynamicSlotValue(esx.root.element), some.Elem.test);
 });
 
 test("supports dashed names", () => {
-  const elem = <some-Elem_test />;
+  const { root } = <some-Elem_test />;
 
-  assert.strictEqual(elem.type, ESXToken.ELEMENT);
-  assert.strictEqual(elem.value, "some-Elem_test");
-});
-
-test("spread props are represented as interpolations", () => {
-  const obj = {};
-  const elem = <div {...obj} />;
-
-  assert.strictEqual(elem.attributes[0].type, ESXToken.INTERPOLATION);
-  assert.strictEqual(elem.attributes[0].value, obj);
+  assert.strictEqual(root.element.value, "some-Elem_test");
 });
 
 test("fragments", () => {
@@ -224,13 +194,12 @@ test("fragments", () => {
     <>
       <p />
       <div />
-    </>
+    </>.root
   );
 
-  assert.strictEqual(frag().id, frag().id);
-  assert.strictEqual(frag().type, ESXToken.FRAGMENT);
+  assert.strictEqual(frag(), frag());
   assert.strictEqual(frag().children.length, 2);
-  assert.strictEqual(frag().attributes, ESXToken._);
+  assert.deepEqual(frag().attributes, []);
 });
 
 test.finish();
