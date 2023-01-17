@@ -116,7 +116,7 @@ test("type of element attributes", () => {
   ];
 
   for (const [desc, esx, expectations] of cases) {
-    const  { root: { attributes } } = esx
+    const { root: { attributes } } = esx;
     assert.strictEqual(attributes.length, expectations.length, desc);
     for (let i = 0; i < attributes.length; i++) {
       const attribute = attributes[i];

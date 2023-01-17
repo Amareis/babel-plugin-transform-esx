@@ -1,5 +1,5 @@
-var _esx = new ESXTag(new ESXSlot("div"), [], []),
-  _esx2 = /*1 dynamics*/ new ESXTag(
+var _esx = new ESXInstance(new ESXTag(new ESXSlot("div"), [], [])),
+  _root = /*1 dynamics*/ new ESXTag(
     new ESXSlot("div"),
     [
       new ESXAttribute("id", new ESXSlot("a")),
@@ -11,7 +11,7 @@ var _esx = new ESXTag(new ESXSlot("div"), [], []),
       /*1*/ new ESXSlot(),
     ]
   ),
-  _esx3 = /*2 dynamics*/ new ESXTag(
+  _root2 = /*2 dynamics*/ new ESXTag(
     null,
     [],
     [
@@ -22,12 +22,12 @@ var _esx = new ESXTag(new ESXSlot("div"), [], []),
       /*2*/ new ESXSlot(),
     ]
   ),
-  _esx4 = /*1 dynamics*/ new ESXTag(
+  _root3 = /*1 dynamics*/ new ESXTag(
     new ESXSlot("div"),
     [],
     [/*1*/ new ESXSlot()]
   ),
-  _esx5 = /*2 dynamics*/ new ESXTag(
+  _root4 = /*2 dynamics*/ new ESXTag(
     /*1*/ new ESXSlot(),
     [
       new ESXAttribute("a", new ESXSlot("a")),
@@ -37,13 +37,13 @@ var _esx = new ESXTag(new ESXSlot("div"), [], []),
   );
 // noinspection ES6UnusedImports
 import { ESXSlot, ESXAttribute, ESXTag, ESXInstance } from "../../dist/esx.js";
-const div = new ESXInstance(_esx, []);
-const div2 = new ESXInstance(_esx2, [div]);
+const div = _esx;
+const div2 = new ESXInstance(_root, [div]);
 function MyComponent(...args) {
-  return new ESXInstance(_esx3, [
+  return new ESXInstance(_root2, [
     div2,
-    args.map((a) => new ESXInstance(_esx4, [a])),
+    args.map((a) => new ESXInstance(_root3, [a])),
   ]);
 }
 export const component = (props) =>
-  new ESXInstance(_esx5, [MyComponent, props]);
+  new ESXInstance(_root4, [MyComponent, props]);

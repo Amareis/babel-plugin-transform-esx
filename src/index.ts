@@ -69,21 +69,29 @@ type JsxPath = NodePath<JSXElement | JSXFragment>
 function transform(path: JsxPath) {
   const dynamics: Expression[] = [];
   const tag = transformElement(path, dynamics);
-  if (dynamics.length)
-    t.addComment(tag, "leading", `${dynamics.length} dynamics`);
 
-  const {scope} = path
-  const ref = scope.generateUidIdentifier('esx')
+  const { scope } = path;
   const programScope = scope.getProgramParent();
-  programScope.push({ id: t.cloneNode(ref), init: tag });
 
-  path.replaceWith(newInstance(ref, dynamics));
+  let esx;
+  if (dynamics.length) {
+    t.addComment(tag, "leading", `${dynamics.length} dynamics`);
+    const ref = scope.generateUidIdentifier("root");
+    programScope.push({ id: t.cloneNode(ref), init: tag });
+    esx = newInstance(ref, dynamics);
+  } else {
+    const ref = scope.generateUidIdentifier("esx");
+    programScope.push({ id: t.cloneNode(ref), init: newInstance(tag, dynamics) });
+    esx = ref;
+  }
+
+  path.replaceWith(esx);
 }
 
 const newInstance = (e: Expression, dynamics: Expression[]) =>
   t.newExpression(
     t.identifier("ESXInstance"),
-    [e, t.arrayExpression(dynamics)]
+    !dynamics.length ? [e] : [e, t.arrayExpression(dynamics)]
   );
 
 function jsxToString(node: JSXIdentifier | JSXNamespacedName): StringLiteral {

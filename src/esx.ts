@@ -57,12 +57,15 @@ export class ESXTag {
 }
 
 export class ESXInstance {
+  readonly isDynamic: boolean;
+
   constructor(
     readonly root: ESXTag,
-    private readonly dSlotsValues: readonly unknown[]
+    private readonly dSlotsValues: readonly unknown[] = []
   ) {
     if (dSlotsValues.length !== root.dynamicSlots.length)
       throw new TypeError("Array of slots values must be same length as root dynamicSlots length");
+    this.isDynamic = root.isDynamic;
   }
 
   getDynamicSlotValue(slot: ESXSlot): unknown {
