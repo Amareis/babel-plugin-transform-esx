@@ -12,6 +12,7 @@ var _esx = new ESX(new ESXTag([new ESXSlot(ESXSlot.ELEMENT_SLOT, "div")])),
       ),
       new ESXSlot(ESXSlot.TEXT_SLOT, "\n    asdasd\n    fthertghfg\n    "),
       new ESXSlot(null /*1*/),
+      new ESXSlot(null, `some${"const"}${`literal!${1}`}`),
     ]
   ),
   _root2 = /*3 dynamics*/ new ESXTag(

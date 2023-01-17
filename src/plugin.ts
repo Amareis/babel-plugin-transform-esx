@@ -19,7 +19,8 @@ import type {
   MemberExpression,
   NullLiteral,
   NumericLiteral,
-  StringLiteral
+  StringLiteral,
+  TemplateLiteral,
 } from "@babel/types";
 import * as t from "@babel/types";
 
@@ -124,11 +125,14 @@ function jsxToJS(node: JSXIdentifier | JSXMemberExpression): MemberExpression | 
 const getChildren = (path: NodePath<JSXElement | JSXFragment>, dynamics: Expression[]): Expression[] =>
   path.get("children").map(c => transformChild(c, dynamics)).filter((n): n is Expression => !!n);
 
-type ConstLiteral = StringLiteral | NumericLiteral | NullLiteral | BooleanLiteral | BigIntLiteral | DecimalLiteral
+type ConstLiteral = StringLiteral | NumericLiteral | NullLiteral | BooleanLiteral | BigIntLiteral | DecimalLiteral | TemplateLiteral
 
 const isConstLiteral = (e: Expression): e is ConstLiteral =>
   t.isStringLiteral(e) || t.isNumericLiteral(e) || t.isNullLiteral(e)
-  || t.isBooleanLiteral(e) || t.isBigIntLiteral(e) || t.isDecimalLiteral(e);
+  || t.isBooleanLiteral(e) || t.isBigIntLiteral(e) || t.isDecimalLiteral(e)
+  || (t.isTemplateLiteral(e)
+    && (!e.expressions.length || e.expressions.every(e => t.isTSType(e) || isConstLiteral(e)))
+  )
 
 const slotMember = (elem: string) =>
   t.memberExpression(t.identifier('ESXSlot'), t.identifier(elem))

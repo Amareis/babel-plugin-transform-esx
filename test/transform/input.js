@@ -10,6 +10,7 @@ const div2 = (
     asdasd
     fthertghfg
     {div}
+    {`some${'const'}${`literal!${1}`}`}
   </div>
 );
 
