@@ -194,13 +194,13 @@ test("fragments", () => {
     <>
       <p />
       <div />
-    </>.root
+    </>
   );
 
   assert.strictEqual(frag(), frag());
-  assert.strictEqual(frag().element, null);
-  assert.strictEqual(frag().children.length, 2);
-  assert.strictEqual(frag().attributes.length, 0);
+  assert.strictEqual(frag().root.element, null);
+  assert.strictEqual(frag().root.children.length, 2);
+  assert.strictEqual(frag().root.attributes.length, 0);
 });
 
 test.finish();
