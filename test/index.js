@@ -198,8 +198,9 @@ test("fragments", () => {
   );
 
   assert.strictEqual(frag(), frag());
+  assert.strictEqual(frag().element, null);
   assert.strictEqual(frag().children.length, 2);
-  assert.deepEqual(frag().attributes, []);
+  assert.strictEqual(frag().attributes.length, 0);
 });
 
 test.finish();
