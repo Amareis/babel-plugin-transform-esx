@@ -54,10 +54,10 @@ export default function(
     inherits: syntaxJSX.default,
     visitor: {
       JSXElement(path) {
-        path.replaceWith(transformElement(path));
+        transform(path)
       },
       JSXFragment(path) {
-        path.replaceWith(transformFragment(path));
+        transform(path)
       }
     }
   };
@@ -68,6 +68,18 @@ hoist root tags
 detect static - null, bool, number, string
 const vars of static and arrow function??
  */
+
+type JsxPath = NodePath<JSXElement | JSXFragment>
+
+function transform(path: JsxPath) {
+  path.replaceWith(newInstance(transformElement(path)));
+}
+
+const newInstance = (e: Expression) =>
+  t.newExpression(
+    t.identifier("ESXInstance"),
+    [e, t.arrayExpression()]
+  );
 
 function jsxToString(node: JSXIdentifier | JSXNamespacedName): StringLiteral {
   let str = t.isJSXNamespacedName(node)
@@ -95,44 +107,41 @@ const newSlot = (dynamic: boolean, value: Expression) =>
     dynamic ? [] : [value]
   );
 
-function transformElement(path: NodePath<JSXElement>) {
-  const node = path.node;
-  const jsxElementName = node.openingElement.name;
+const isElementPath = (path: JsxPath): path is NodePath<JSXElement> =>
+  t.isJSXElement(path.node)
 
-  let dynamic: boolean;
-  let element;
-  if (
-    t.isJSXNamespacedName(jsxElementName) ||
-    (t.isJSXIdentifier(jsxElementName) && /^[a-z]/.test(jsxElementName.name))
-  ) {
-    dynamic = false;
-    element = jsxToString(jsxElementName);
+function transformElement(path: JsxPath) {
+  let elem, attrs
+  if (isElementPath(path)) {
+    const { node } = path;
+    const jsxElementName = node.openingElement.name;
+
+    let dynamic: boolean;
+    let element;
+    if (
+      t.isJSXNamespacedName(jsxElementName) ||
+      (t.isJSXIdentifier(jsxElementName) && /^[a-z]/.test(jsxElementName.name))
+    ) {
+      dynamic = false;
+      element = jsxToString(jsxElementName);
+    } else {
+      // dynamic = true;
+      dynamic = false; //temporary
+      element = jsxToJS(jsxElementName);
+    }
+    elem = newSlot(dynamic, element)
+    attrs = transformAttributesList(path.get("openingElement"));
   } else {
-    // dynamic = true;
-    dynamic = false; //temporary
-    element = jsxToJS(jsxElementName);
+    elem = t.nullLiteral()
+    attrs = t.arrayExpression()
   }
-
-  const attributes = transformAttributesList(path.get("openingElement"));
   const children = getChildren(path);
 
   return t.newExpression(
     t.identifier("ESXTag"),
     [
-      newSlot(dynamic, element),
-      attributes,
-      t.arrayExpression(children)
-    ]
-  );
-}
-
-function transformFragment(path: NodePath<JSXFragment>) {
-  const children = getChildren(path);
-  return t.newExpression(
-    t.identifier("ESXTag"),
-    [
-      t.nullLiteral(),
-      t.arrayExpression(),
+      elem,
+      attrs,
       t.arrayExpression(children)
     ]
   );
@@ -203,10 +212,8 @@ function transformChild(path: NodePath<JSXElement["children"][number]>): Express
       return null;
     }
     return newSlot(false, t.stringLiteral(node.value));
-  } else if (t.isJSXElement(node)) {
-    return transformElement(path as NodePath<JSXElement>);
-  } else if (t.isJSXFragment(node)) {
-    return transformFragment(path as NodePath<JSXFragment>);
+  } else if (t.isJSXElement(node) || t.isJSXFragment(node)) {
+    return transformElement(path as JsxPath);
   }
 
   assertUnreachable(node);
