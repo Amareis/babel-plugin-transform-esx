@@ -1,4 +1,4 @@
-type OptionalValue = [value: unknown] | []
+type OptionalValue = [value?: unknown]
 
 export type WellKnownSlots =
   typeof ESXSlot.ELEMENT_SLOT | typeof ESXSlot.SPREAD_SLOT | typeof ESXSlot.TEXT_SLOT
@@ -10,10 +10,14 @@ export class ESXSlot {
   static readonly SPREAD_SLOT: unique symbol = Symbol("ESX.SPREAD_SLOT");
   static readonly TEXT_SLOT: unique symbol = Symbol("ESX.TEXT_SLOT");
 
+  static readonly createElement = (...args: OptionalValue) => new ESXSlot(ESXSlot.ELEMENT_SLOT, ...args);
+  static readonly createSpread = (...args: OptionalValue) => new ESXSlot(ESXSlot.SPREAD_SLOT, ...args);
+  static readonly createText = (text: string) => new ESXSlot(ESXSlot.TEXT_SLOT, text);
+
   readonly isDynamic: boolean;
+  readonly isElementSlot = this.name === ESXSlot.ELEMENT_SLOT;
   readonly isSpreadSlot = this.name === ESXSlot.SPREAD_SLOT;
-  readonly isTagElement = this.name === ESXSlot.ELEMENT_SLOT;
-  readonly isStaticText = this.name === ESXSlot.TEXT_SLOT;
+  readonly isTextSlot = this.name === ESXSlot.TEXT_SLOT;
 
   readonly #value: unknown;
 
@@ -22,7 +26,7 @@ export class ESXSlot {
   constructor(readonly name: SlotName, ...args: OptionalValue) {
     this.isDynamic = args.length === 0;
 
-    if (this.isDynamic && this.isStaticText)
+    if (this.isDynamic && this.isTextSlot)
       throw new TypeError("Static text slot cannot be dynamic");
 
     if (!this.isDynamic)
@@ -44,17 +48,20 @@ export class ESXTag {
 
   constructor(
     readonly slots: readonly ESXSlot[] = [],
-    readonly children: readonly (ESXSlot | ESXTag)[] = []
+    readonly children: readonly (ESXSlot | ESXTag)[] = [],
+    /** @internal */
+    dynamics?: ESXSlot[]
   ) {
     this.isFragment = slots.length === 0;
 
-    let dSlots = [];
-    dSlots.push(
-      ...slots.filter(a => a.isDynamic),
-      ...children.filter(c => c.isDynamic).flatMap(c => c instanceof ESXSlot ? c : c.dynamicSlots)
-    );
+    if (!dynamics) {
+      dynamics = [
+        ...slots.filter(a => a.isDynamic),
+        ...children.filter(c => c.isDynamic).flatMap(c => c instanceof ESXSlot ? c : c.dynamicSlots)
+      ];
+    }
 
-    this.dynamicSlots = dSlots;
+    this.dynamicSlots = dynamics;
 
     this.isDynamic = this.dynamicSlots.length > 0;
   }

@@ -5,7 +5,7 @@ const div = <div />;
 
 const div2 = (
   <div id="a" title={"b"}>
-    <p>c</p>
+    <p>c{div}</p>
     {}
     asdasd
     fthertghfg

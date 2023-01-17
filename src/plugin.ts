@@ -20,8 +20,9 @@ import type {
   NullLiteral,
   NumericLiteral,
   StringLiteral,
-  TemplateLiteral,
+  TemplateLiteral
 } from "@babel/types";
+import type { Scope } from "@babel/traverse";
 import * as t from "@babel/types";
 
 import { ESXSlot, WellKnownSlots } from "./esx.js";
@@ -37,56 +38,75 @@ export default function(
       `The .polyfill option must be one of: false, "inline", "import".`
     );
   }
-  /*
-    function buildReference({ scope }: NodePath<JSXElement | JSXFragment>) {
-      const ref = scope.generateUidIdentifier("templateReference");
-      const programScope = scope.getProgramParent();
-      programScope.push({ id: t.cloneNode(ref), init: t.objectExpression([]) });
-
-      ensurePolyfill(programScope.path as NodePath<Program>);
-      return ref;
-    }
-
-    const polyfillInjected = new WeakSet();
-
-    function ensurePolyfill(programPath: NodePath<Program>) {
-      if (!polyfill || polyfillInjected.has(programPath.node)) return;
-      polyfillInjected.add(programPath.node);
-
-      if (programPath.scope.hasBinding("ESXToken")) return;
-      programPath.unshiftContainer(
-        "body",
-        polyfill === "inline"
-          ? getInlinePolyfill(template)
-          : getExternalPolyfill(template)
-      );
-    }*/
 
   return {
     inherits: syntaxJSX.default,
     visitor: {
       JSXElement(path) {
-        transform(path);
+        transformRoot(path);
       },
       JSXFragment(path) {
-        transform(path);
+        transformRoot(path);
       }
     }
   };
 }
 
+class Dynamics {
+  refs: Identifier[] = [];
+  inits: Expression[] = [];
+
+  private tagRefs: Identifier[][] = [];
+
+  constructor(readonly scope: Scope) {
+  }
+
+  bind(slot: Expression, init: Expression): Expression {
+    const ref = this.scope.generateUidIdentifier("dyn");
+    this.scope.push({ id: t.cloneNode(ref) });
+
+    this.refs.push(t.cloneNode(ref));
+    this.tagRefs[0].push(t.cloneNode(ref));
+
+    this.inits.push(init);
+    return t.assignmentExpression("=", ref, slot);
+  }
+
+  get length() {
+    return this.refs.length;
+  }
+
+  beginTag() {
+    this.tagRefs.unshift([]);
+  }
+
+  endTag(): Identifier[] {
+    const refs = this.tagRefs.shift();
+    if (!refs)
+      throw new Error("Unbalanced tags");
+    if (this.tagRefs.length)
+      this.tagRefs[0].push(...refs.map(n => t.cloneNode(n)));
+    return refs;
+  }
+
+  checkBalance() {
+    if (this.tagRefs.length)
+      throw new Error("Unbalanced tags");
+  }
+}
+
 type JsxPath = NodePath<JSXElement | JSXFragment>
 
-function transform(path: JsxPath) {
-  const dynamics: Expression[] = [];
-  const tag = transformElement(path, dynamics);
-
+function transformRoot(path: JsxPath) {
   const { scope } = path;
   const programScope = scope.getProgramParent();
 
+  const dynamics = new Dynamics(programScope);
+  const tag = transformElement(path, dynamics);
+  dynamics.checkBalance();
+
   let esx;
   if (dynamics.length) {
-    t.addComment(tag, "leading", `${dynamics.length} dynamics`);
     const ref = scope.generateUidIdentifier("root");
     programScope.push({ id: t.cloneNode(ref), init: tag });
     esx = newInstance(ref, dynamics);
@@ -99,10 +119,10 @@ function transform(path: JsxPath) {
   path.replaceWith(esx);
 }
 
-const newInstance = (e: Expression, dynamics: Expression[]) =>
+const newInstance = (e: Expression, dynamics: Dynamics) =>
   t.newExpression(
     t.identifier("ESX"),
-    !dynamics.length ? [e] : [e, t.arrayExpression(dynamics)]
+    !dynamics.length ? [e] : [e, t.arrayExpression(dynamics.inits)]
   );
 
 function jsxToString(node: JSXIdentifier | JSXNamespacedName): StringLiteral {
@@ -122,59 +142,63 @@ function jsxToJS(node: JSXIdentifier | JSXMemberExpression): MemberExpression | 
   return t.inherits(t.identifier(node.name), node);
 }
 
-const getChildren = (path: NodePath<JSXElement | JSXFragment>, dynamics: Expression[]): Expression[] =>
+const getChildren = (path: NodePath<JSXElement | JSXFragment>, dynamics: Dynamics): Expression[] =>
   path.get("children").map(c => transformChild(c, dynamics)).filter((n): n is Expression => !!n);
 
-type ConstLiteral = StringLiteral | NumericLiteral | NullLiteral | BooleanLiteral | BigIntLiteral | DecimalLiteral | TemplateLiteral
+type ConstLiteral =
+  | StringLiteral
+  | NumericLiteral
+  | NullLiteral
+  | BooleanLiteral
+  | BigIntLiteral
+  | DecimalLiteral
+  | TemplateLiteral
 
 const isConstLiteral = (e: Expression): e is ConstLiteral =>
   t.isStringLiteral(e) || t.isNumericLiteral(e) || t.isNullLiteral(e)
   || t.isBooleanLiteral(e) || t.isBigIntLiteral(e) || t.isDecimalLiteral(e)
   || (t.isTemplateLiteral(e)
     && (!e.expressions.length || e.expressions.every(e => t.isTSType(e) || isConstLiteral(e)))
-  )
+  );
 
-const slotMember = (elem: string) =>
-  t.memberExpression(t.identifier('ESXSlot'), t.identifier(elem))
+const slotHelper = (elem: string, expr?: Expression) =>
+  t.callExpression(t.memberExpression(t.identifier("ESXSlot"), t.identifier(elem)), expr ? [expr] : []);
 
-function getSlotNameExpr(name: SlotName): Expression {
-  if (typeof name !== 'symbol')
-    return name || t.nullLiteral()
+function createSlot(name: SlotName, expr?: Expression): Expression {
+  if (typeof name !== "symbol") {
+    const n = name || t.nullLiteral();
+    return t.newExpression(
+      t.identifier("ESXSlot"),
+      expr ? [n, expr] : [n]
+    );
+  }
 
   if (name === ESXSlot.ELEMENT_SLOT)
-    return slotMember('ELEMENT_SLOT')
-  else if (name === ESXSlot.TEXT_SLOT)
-    return slotMember('TEXT_SLOT')
+    return slotHelper("createElement", expr);
   else if (name === ESXSlot.SPREAD_SLOT)
-    return slotMember('SPREAD_SLOT')
+    return slotHelper("createSpread", expr);
+  else if (name === ESXSlot.TEXT_SLOT)
+    return slotHelper("createText", expr);
 
-  assertUnreachable(name)
+  assertUnreachable(name);
 }
 
-function makeSlot(name: Expression, expr?: ConstLiteral) {
-  return t.newExpression(
-    t.identifier("ESXSlot"),
-    expr ? [name, expr] : [name]
-  );
-}
-
-function newSlot(name: SlotName, expr: Expression, dynamics: Expression[]) {
+function newSlot(name: SlotName, expr: Expression, dynamics: Dynamics) {
   //possibly we can also count const vars of const literals or of top-level arrow functions
   //but, it's not clear how it should be hoisted now, so let it be for some "aggressive" mode
 
-  const n = getSlotNameExpr(name);
   if (isConstLiteral(expr))
-    return makeSlot(n, expr);
+    return createSlot(name, expr);
 
-  dynamics.push(expr);
-  t.addComment(n, "trailing", dynamics.length.toString());
-  return makeSlot(n);
+  return dynamics.bind(createSlot(name), expr);
 }
 
 const isElementPath = (path: JsxPath): path is NodePath<JSXElement> =>
   t.isJSXElement(path.node);
 
-function transformElement(path: JsxPath, dynamics: Expression[]): Expression {
+function transformElement(path: JsxPath, dynamics: Dynamics): Expression {
+  dynamics.beginTag();
+
   let attrs: Expression[] = [];
   if (isElementPath(path)) {
     const { node } = path;
@@ -196,22 +220,20 @@ function transformElement(path: JsxPath, dynamics: Expression[]): Expression {
   }
   const children = getChildren(path, dynamics);
 
-  let args = [];
-  if (children.length)
-    args.push(t.arrayExpression(attrs), t.arrayExpression(children));
-  else if (attrs.length)
-    args.push(t.arrayExpression(attrs));
+  const refs = dynamics.endTag();
+
+  let args = [attrs, children, refs].map(a => t.arrayExpression(a));
 
   return t.newExpression(t.identifier("ESXTag"), args);
 }
 
-const transformAttributesList = (path: NodePath<JSXOpeningElement>, dynamics: Expression[]) =>
+const transformAttributesList = (path: NodePath<JSXOpeningElement>, dynamics: Dynamics) =>
   path.get("attributes").map(a => transformAttribute(a, dynamics));
 
-const newAttr = (name: StringLiteral | typeof ESXSlot.SPREAD_SLOT, value: Expression, dynamics: Expression[]) =>
+const newAttr = (name: StringLiteral | typeof ESXSlot.SPREAD_SLOT, value: Expression, dynamics: Dynamics) =>
   newSlot(name, value, dynamics);
 
-function transformAttribute(path: NodePath<JSXAttribute | JSXSpreadAttribute>, dynamics: Expression[]) {
+function transformAttribute(path: NodePath<JSXAttribute | JSXSpreadAttribute>, dynamics: Dynamics) {
   const node = path.node;
 
   if (t.isJSXSpreadAttribute(node)) {
@@ -244,7 +266,7 @@ function transformAttribute(path: NodePath<JSXAttribute | JSXSpreadAttribute>, d
   );
 }
 
-function transformChild(path: NodePath<JSXElement["children"][number]>, dynamics: Expression[]): Expression | null {
+function transformChild(path: NodePath<JSXElement["children"][number]>, dynamics: Dynamics): Expression | null {
   const node = path.node;
 
   if (t.isJSXExpressionContainer(node)) {
