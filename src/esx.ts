@@ -18,46 +18,47 @@ class ESXAttribute {
   constructor(
     readonly name: string | undefined,
     readonly slot: ESXSlot
-  ) {}
+  ) {
+  }
 
   readonly isDynamic = this.slot.isDynamic;
 
   readonly isSpread = this.name === undefined;
 }
 
-class ESXElement {
+class ESXTag {
   readonly isDynamic: boolean;
   readonly isFragment: boolean;
 
-  readonly dynamicSlots: readonly ESXSlot[]
+  readonly dynamicSlots: readonly ESXSlot[];
 
   constructor(
     readonly element: ESXSlot | undefined,
     readonly attributes: readonly ESXAttribute[] = [],
-    readonly children: readonly (ESXSlot | ESXElement)[] = []
+    readonly children: readonly (ESXSlot | ESXTag)[] = []
   ) {
     if (!element && attributes.length > 0)
-      throw new TypeError("Fragment element cannot contain attributes");
+      throw new TypeError("Fragment tag cannot contain attributes");
 
     this.isFragment = element === undefined;
 
-    let dSlots = []
+    let dSlots = [];
     if (element?.isDynamic)
-      dSlots.push(element)
+      dSlots.push(element);
     dSlots.push(
       ...attributes.filter(a => a.slot.isDynamic).map(a => a.slot),
       ...children.filter(c => c.isDynamic).flatMap(c => c instanceof ESXSlot ? c : c.dynamicSlots)
-    )
+    );
 
-    this.dynamicSlots = dSlots
+    this.dynamicSlots = dSlots;
 
-    this.isDynamic = this.dynamicSlots.length > 0
+    this.isDynamic = this.dynamicSlots.length > 0;
   }
 }
 
 export class ESXInstance {
   constructor(
-    readonly root: ESXElement,
+    readonly root: ESXTag,
     private readonly dSlotsValues: readonly unknown[]
   ) {
     if (dSlotsValues.length !== root.dynamicSlots.length)
@@ -79,8 +80,8 @@ export class ESXInstance {
     return this.getDynamicSlotValue(slot);
   }
 
-  bind(): ESXElement {
-    return this.bindElement(this.root);
+  bind(): ESXTag {
+    return this.bindTag(this.root);
   }
 
   private bindSlot(slot: ESXSlot): ESXSlot {
@@ -95,15 +96,15 @@ export class ESXInstance {
     return new ESXAttribute(attr.name, this.bindSlot(attr.slot));
   }
 
-  private bindElement(elem: ESXElement): ESXElement {
+  private bindTag(elem: ESXTag): ESXTag {
     if (!elem.isDynamic)
       return elem;
-    return new ESXElement(
+    return new ESXTag(
       elem.element && this.bindSlot(elem.element),
       elem.attributes.map(a => this.bindAttribute(a)),
       elem.children.map(c => c instanceof ESXSlot
         ? this.bindSlot(c)
-        : this.bindElement(c)
+        : this.bindTag(c)
       )
     );
   }
