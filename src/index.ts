@@ -64,11 +64,6 @@ export default function(
   };
 }
 
-/* todo:
-hoist root tags
-✅ detect static - null, bool, number, string
- */
-
 type JsxPath = NodePath<JSXElement | JSXFragment>
 
 function transform(path: JsxPath) {
@@ -76,7 +71,13 @@ function transform(path: JsxPath) {
   const tag = transformElement(path, dynamics);
   if (dynamics.length)
     t.addComment(tag, "leading", `${dynamics.length} dynamics`);
-  path.replaceWith(newInstance(tag, dynamics));
+
+  const {scope} = path
+  const ref = scope.generateUidIdentifier('esx')
+  const programScope = scope.getProgramParent();
+  programScope.push({ id: t.cloneNode(ref), init: tag });
+
+  path.replaceWith(newInstance(ref, dynamics));
 }
 
 const newInstance = (e: Expression, dynamics: Expression[]) =>
