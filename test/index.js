@@ -2,9 +2,9 @@ import fs from "fs";
 import assert from "assert";
 import * as prettier from "prettier";
 import babel from "@babel/core";
-import thisPlugin from "../dist/index.js";
+import thisPlugin from "../dist/plugin.js";
 // noinspection ES6UnusedImports
-import { ESXSlot, ESXAttribute, ESXTag, ESXInstance } from "../dist/esx.js";
+import { ESXSlot, ESXTag, ESX } from "../dist/esx.js";
 
 function test(desc, run) {
   try {
@@ -116,16 +116,16 @@ test("type of element attributes", () => {
   ];
 
   for (const [desc, esx, expectations] of cases) {
-    const { root: { attributes } } = esx;
-    assert.strictEqual(attributes.length, expectations.length, desc);
-    for (let i = 0; i < attributes.length; i++) {
-      const attribute = attributes[i];
-      const { dyn, value, name = null } = expectations[i];
+    const { root: { slots } } = esx;
+    assert.strictEqual(slots.length, expectations.length + 1, desc);
+    for (let i = 1; i < slots.length; i++) {
+      const attribute = slots[i];
+      const { dyn, value, name = ESXSlot.SPREAD_SLOT } = expectations[i - 1];
       assert.strictEqual(attribute.name, name, desc);
       if (value)
-        assert.strictEqual(attribute.slot.value, value, desc);
+        assert.strictEqual(attribute.value, value, desc);
       else if (dyn)
-        assert.strictEqual(esx.getDynamicSlotValue(attribute.slot), dyn, desc);
+        assert.strictEqual(esx.getDynamicSlotValue(attribute), dyn, desc);
     }
   }
 });
@@ -172,21 +172,21 @@ test("newlines in children are collapsed", () => {
 test("supports xml namespaces", () => {
   const { root } = <xml:svg xmlns:xlink="http://www.w3.org/1999/xlink" />;
 
-  assert.strictEqual(root.element.value, "xml:svg");
-  assert.strictEqual(root.attributes[0].name, "xmlns:xlink");
+  assert.strictEqual(root.slots[0].value, "xml:svg");
+  assert.strictEqual(root.slots[1].name, "xmlns:xlink");
 });
 
 test("supports member expressions", () => {
   const some = { Elem: { test: {} } };
   const esx = <some.Elem.test />;
 
-  assert.strictEqual(esx.getDynamicSlotValue(esx.root.element), some.Elem.test);
+  assert.strictEqual(esx.getDynamicSlotValue(esx.root.slots[0]), some.Elem.test);
 });
 
 test("supports dashed names", () => {
   const { root } = <some-Elem_test />;
 
-  assert.strictEqual(root.element.value, "some-Elem_test");
+  assert.strictEqual(root.slots[0].value, "some-Elem_test");
 });
 
 test("fragments", () => {
@@ -198,9 +198,9 @@ test("fragments", () => {
   );
 
   assert.strictEqual(frag(), frag());
-  assert.strictEqual(frag().root.element, null);
+  assert.strictEqual(frag().root.isFragment, true);
+  assert.strictEqual(frag().root.slots.length, 0);
   assert.strictEqual(frag().root.children.length, 2);
-  assert.strictEqual(frag().root.attributes.length, 0);
 });
 
 test.finish();

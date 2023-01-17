@@ -1,5 +1,5 @@
 // noinspection ES6UnusedImports
-import { ESXSlot, ESXAttribute, ESXTag, ESXInstance } from "../../dist/esx.js";
+import { ESXSlot, ESXTag, ESX } from "../../dist/esx.js";
 
 const div = <div />;
 
@@ -19,6 +19,7 @@ function MyComponent(...args) {
       {"A"},{"B"}
       {div2}
       {args.map(a => <div>{a}</div>)}
+      {...args}
     </>
   );
 }

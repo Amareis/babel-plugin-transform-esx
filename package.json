@@ -2,7 +2,7 @@
   "name": "@ungap/babel-plugin-transform-esx",
   "version": "0.4.3",
   "description": "An ESX transformer as implementation reference.",
-  "main": "dist/index.js",
+  "main": "dist/plugin.js",
   "type": "module",
   "scripts": {
     "build": "rm -rf dist && tsc",
