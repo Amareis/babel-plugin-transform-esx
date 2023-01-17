@@ -1,10 +1,8 @@
-import ESXToken from "@ungap/esxtoken";
 // @ts-ignore
 import syntaxJSX from "@babel/plugin-syntax-jsx";
-import { getInlinePolyfill, getExternalPolyfill } from "./polyfill.js";
+// import { getInlinePolyfill, getExternalPolyfill } from "./polyfill.js";
 import type { NodePath, PluginObj } from "@babel/core";
 import type {
-  Program,
   JSXElement,
   JSXFragment,
   JSXNamespacedName,
@@ -14,7 +12,7 @@ import type {
   Identifier,
   MemberExpression,
   StringLiteral,
-  JSXOpeningElement, JSXAttribute, JSXSpreadAttribute, NullLiteral
+  JSXOpeningElement, JSXAttribute, JSXSpreadAttribute
 } from "@babel/types";
 import * as t from "@babel/types";
 
@@ -27,106 +25,49 @@ export default function(
       `The .polyfill option must be one of: false, "inline", "import".`
     );
   }
+  /*
+    function buildReference({ scope }: NodePath<JSXElement | JSXFragment>) {
+      const ref = scope.generateUidIdentifier("templateReference");
+      const programScope = scope.getProgramParent();
+      programScope.push({ id: t.cloneNode(ref), init: t.objectExpression([]) });
 
-  function buildReference({ scope }: NodePath<JSXElement | JSXFragment>) {
-    const ref = scope.generateUidIdentifier("templateReference");
-    const programScope = scope.getProgramParent();
-    programScope.push({ id: t.cloneNode(ref), init: t.objectExpression([]) });
+      ensurePolyfill(programScope.path as NodePath<Program>);
+      return ref;
+    }
 
-    ensurePolyfill(programScope.path as NodePath<Program>);
-    return ref;
-  }
+    const polyfillInjected = new WeakSet();
 
-  const polyfillInjected = new WeakSet();
+    function ensurePolyfill(programPath: NodePath<Program>) {
+      if (!polyfill || polyfillInjected.has(programPath.node)) return;
+      polyfillInjected.add(programPath.node);
 
-  function ensurePolyfill(programPath: NodePath<Program>) {
-    if (!polyfill || polyfillInjected.has(programPath.node)) return;
-    polyfillInjected.add(programPath.node);
-
-    if (programPath.scope.hasBinding("ESXToken")) return;
-    programPath.unshiftContainer(
-      "body",
-      polyfill === "inline"
-        ? getInlinePolyfill(template)
-        : getExternalPolyfill(template)
-    );
-  }
+      if (programPath.scope.hasBinding("ESXToken")) return;
+      programPath.unshiftContainer(
+        "body",
+        polyfill === "inline"
+          ? getInlinePolyfill(template)
+          : getExternalPolyfill(template)
+      );
+    }*/
 
   return {
     inherits: syntaxJSX.default,
     visitor: {
       JSXElement(path) {
-        path.replaceWith(transformElement(path, buildReference(path)));
+        path.replaceWith(transformElement(path));
       },
       JSXFragment(path) {
-        path.replaceWith(transformFragment(path, buildReference(path)));
+        path.replaceWith(transformFragment(path));
       }
     }
   };
 }
 
-const getChildren = (path: NodePath<JSXElement | JSXFragment>): Expression[] =>
-  path.get("children").map(transformChild).filter((n): n is Expression => !!n);
-
-const getDirectMember = (nmsp: string) => t.memberExpression.apply(
-  t, nmsp.split(".").map(x => t.identifier(x)) as any
-);
-
-const interpolation = (value: Expression) =>
-  invoke("ESXToken.b", t.numericLiteral(ESXToken.INTERPOLATION), value);
-
-const invoke = (nmsp: string, ...args: Expression[]) =>
-  t.callExpression(getDirectMember(nmsp), args);
-
-const jsx2name = (node: JSXMemberExpression | JSXIdentifier | JSXNamespacedName): string =>
-  t.isJSXMemberExpression(node) ?
-    [jsx2name(node.object), jsx2name(node.property)].join(".") :
-    node.name as string;
-
-function transformElement(path: NodePath<JSXElement>, ref: Identifier | NullLiteral) {
-  const node = path.node;
-  const jsxElementName = node.openingElement.name;
-
-  let type: number;
-  let element;
-  if (
-    t.isJSXNamespacedName(jsxElementName) ||
-    (t.isJSXIdentifier(jsxElementName) && /^[a-z]/.test(jsxElementName.name))
-  ) {
-    type = ESXToken.ELEMENT;
-    element = jsxToString(jsxElementName);
-  } else {
-    type = ESXToken.COMPONENT;
-    element = jsxToJS(jsxElementName);
-  }
-
-  let children = getChildren(path);
-  const attributes = transformAttributesList(path.get("openingElement"));
-
-  return t.newExpression(
-    t.identifier("ESXToken"),
-    [
-      ref,
-      t.numericLiteral(type),
-      attributes,
-      children.length ? t.arrayExpression(children) : getDirectMember("ESXToken._"),
-      type === ESXToken.ELEMENT ? element : t.stringLiteral(jsx2name(jsxElementName)),
-      element
-    ]
-  );
-}
-
-function transformFragment(path: NodePath<JSXFragment>, ref: Identifier | NullLiteral) {
-  const children = getChildren(path);
-  return t.newExpression(
-    t.identifier("ESXToken"),
-    [
-      ref,
-      t.numericLiteral(ESXToken.FRAGMENT),
-      getDirectMember("ESXToken._"),
-      children.length ? t.arrayExpression(children) : getDirectMember("ESXToken._")
-    ]
-  );
+function jsxToString(node: JSXIdentifier | JSXNamespacedName): StringLiteral {
+  let str = t.isJSXNamespacedName(node)
+    ? `${node.namespace.name}:${node.name.name}`
+    : node.name;
+  return t.inherits(t.stringLiteral(str), node);
 }
 
 function jsxToJS(node: JSXIdentifier | JSXMemberExpression): MemberExpression | Identifier {
@@ -139,31 +80,81 @@ function jsxToJS(node: JSXIdentifier | JSXMemberExpression): MemberExpression | 
   return t.inherits(t.identifier(node.name), node);
 }
 
-function jsxToString(node: JSXIdentifier | JSXNamespacedName): StringLiteral {
-  let str = t.isJSXNamespacedName(node)
-    ? `${node.namespace.name}:${node.name.name}`
-    : node.name;
-  return t.inherits(t.stringLiteral(str), node);
+const getChildren = (path: NodePath<JSXElement | JSXFragment>): Expression[] =>
+  path.get("children").map(transformChild).filter((n): n is Expression => !!n);
+
+const newSlot = (dynamic: boolean, value: Expression) =>
+  t.newExpression(
+    t.identifier("ESXSlot"),
+    [t.booleanLiteral(dynamic), value]
+  );
+
+function transformElement(path: NodePath<JSXElement>) {
+  const node = path.node;
+  const jsxElementName = node.openingElement.name;
+
+  let dynamic: boolean;
+  let element;
+  if (
+    t.isJSXNamespacedName(jsxElementName) ||
+    (t.isJSXIdentifier(jsxElementName) && /^[a-z]/.test(jsxElementName.name))
+  ) {
+    dynamic = false;
+    element = jsxToString(jsxElementName);
+  } else {
+    dynamic = true;
+    element = jsxToJS(jsxElementName);
+  }
+
+  const attributes = transformAttributesList(path.get("openingElement"));
+  const children = getChildren(path);
+
+  return t.newExpression(
+    t.identifier("ESXTag"),
+    [
+      newSlot(dynamic, element),
+      attributes,
+      t.arrayExpression(children)
+    ]
+  );
+}
+
+function transformFragment(path: NodePath<JSXFragment>) {
+  const children = getChildren(path);
+  return t.newExpression(
+    t.identifier("ESXTag"),
+    [
+      t.nullLiteral(),
+      t.arrayExpression(),
+      t.arrayExpression(children)
+    ]
+  );
 }
 
 function transformAttributesList(path: NodePath<JSXOpeningElement>) {
   const node = path.node;
 
-  return node.attributes.length === 0 ?
-    getDirectMember("ESXToken._") :
-    t.arrayExpression(path.get("attributes").map(transformAttribute));
+  return node.attributes.length === 0
+    ? t.arrayExpression()
+    : t.arrayExpression(path.get("attributes").map(transformAttribute));
 }
+
+const newAttr = (name: string | null, value: Expression) =>
+  t.newExpression(
+    t.identifier("ESXAttribute"),
+    [name ? t.stringLiteral(name) : t.nullLiteral(), newSlot(false, value)]
+  );
 
 function transformAttribute(path: NodePath<JSXAttribute | JSXSpreadAttribute>) {
   const node = path.node;
 
   if (t.isJSXSpreadAttribute(node)) {
-    return t.inherits(interpolation(node.argument), node);
+    // {...obj}
+    return t.inherits(newAttr(null, node.argument), node);
   }
 
-  let dynamic = false, name, value: Expression;
+  let name: StringLiteral, value: Expression;
   if (t.isJSXExpressionContainer(node.value)) {
-    dynamic = true;
     name = jsxToString(node.name);
     //empty expression in arguments is syntax error in babel jsx parser
     value = node.value.expression as Expression;
@@ -182,7 +173,7 @@ function transformAttribute(path: NodePath<JSXAttribute | JSXSpreadAttribute>) {
   }
 
   return t.inherits(
-    invoke("ESXToken.a", t.booleanLiteral(dynamic), name, value),
+    newAttr(name.value, value),
     node
   );
 }
@@ -193,7 +184,7 @@ function transformChild(path: NodePath<JSXElement["children"][number]>): Express
   if (t.isJSXExpressionContainer(node)) {
     if (t.isJSXEmptyExpression(node.expression))
       return null;
-    return interpolation(node.expression);
+    return newSlot(false, node.expression);
   } else if (t.isJSXSpreadChild(node)) {
     // <div>{...foo}</div>
     throw path.buildCodeFrameError(
@@ -204,11 +195,11 @@ function transformChild(path: NodePath<JSXElement["children"][number]>): Express
     if (node.value.trim() === "" && /[\r\n]/.test(node.value)) {
       return null;
     }
-    return invoke("ESXToken.b", t.numericLiteral(ESXToken.STATIC), t.stringLiteral(node.value));
+    return newSlot(false, t.stringLiteral(node.value));
   } else if (t.isJSXElement(node)) {
-    return transformElement(path as NodePath<JSXElement>, t.nullLiteral());
+    return transformElement(path as NodePath<JSXElement>);
   } else if (t.isJSXFragment(node)) {
-    return transformFragment(path as NodePath<JSXFragment>, t.nullLiteral());
+    return transformFragment(path as NodePath<JSXFragment>);
   }
 
   assertUnreachable(node);

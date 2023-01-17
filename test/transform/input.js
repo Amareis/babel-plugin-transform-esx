@@ -4,6 +4,8 @@ const div2 = (
   <div a="a" b={"b"}>
     <p>c</p>
     {}
+    asdasd
+    fthertghfg
   </div>
 );
 

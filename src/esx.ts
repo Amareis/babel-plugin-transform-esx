@@ -1,9 +1,9 @@
-class ESXSlot {
+export class ESXSlot {
   constructor(
     readonly isDynamic: boolean,
     private readonly _value: unknown = undefined
   ) {
-    if (this.isDynamic && _value !== undefined)
+    if (isDynamic && _value !== undefined)
       throw new TypeError("Dynamic slot value always must be undefined");
   }
 
@@ -14,33 +14,33 @@ class ESXSlot {
   }
 }
 
-class ESXAttribute {
+export class ESXAttribute {
   constructor(
-    readonly name: string | undefined,
+    readonly name: string | null,
     readonly slot: ESXSlot
   ) {
   }
 
   readonly isDynamic = this.slot.isDynamic;
 
-  readonly isSpread = this.name === undefined;
+  readonly isSpread = this.name === null;
 }
 
-class ESXTag {
+export class ESXTag {
   readonly isDynamic: boolean;
   readonly isFragment: boolean;
 
   readonly dynamicSlots: readonly ESXSlot[];
 
   constructor(
-    readonly element: ESXSlot | undefined,
+    readonly element: ESXSlot | null,
     readonly attributes: readonly ESXAttribute[] = [],
     readonly children: readonly (ESXSlot | ESXTag)[] = []
   ) {
     if (!element && attributes.length > 0)
       throw new TypeError("Fragment tag cannot contain attributes");
 
-    this.isFragment = element === undefined;
+    this.isFragment = !element;
 
     let dSlots = [];
     if (element?.isDynamic)
