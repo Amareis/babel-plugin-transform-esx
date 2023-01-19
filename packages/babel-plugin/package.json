@@ -1,0 +1,42 @@
+{
+  "name": "@es-esx/babel-plugin",
+  "version": "0.5.0",
+  "description": "Babel plugin for ESX",
+  "main": "dist/plugin.js",
+  "type": "module",
+  "scripts": {
+    "build": "rm -rf dist && tsc",
+    "test:all": "rm -rf ./test/transform/output.js && npm run test",
+    "test:build": "babel ./test/index.js -o ./test/index.compiled.js",
+    "test": "npm run build && npm run test:build && node ./test/index.compiled.js",
+    "prepare": "npm run build",
+    "prepublishOnly": "npm run test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/es-esx/esx.git"
+  },
+  "keywords": [
+    "ESX",
+    "babel plugin"
+  ],
+  "author": "Ivan Plesskih",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/es-esx/esx/issues"
+  },
+  "homepage": "https://github.com/es-esx/esx#readme",
+  "devDependencies": {
+    "@babel/cli": "^7.19.3",
+    "@babel/core": "^7.20.2",
+    "@types/babel__core": "^7.1.20",
+    "@types/node": "^18.11.18"
+  },
+  "dependencies": {
+    "@babel/plugin-syntax-jsx": "^7.18.6",
+    "@es-esx/esx": "*"
+  },
+  "peerDependencies": {
+    "@babel/core": "^7.20.2"
+  }
+}

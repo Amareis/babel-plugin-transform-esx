@@ -1,10 +1,7 @@
 import fs from "fs";
 import assert from "assert";
-import * as prettier from "prettier";
 import babel from "@babel/core";
 import thisPlugin from "../dist/plugin.js";
-// noinspection ES6UnusedImports
-import { ESXSlot, ESXElement, ESX } from "../dist/esx.js";
 
 function test(desc, run) {
   try {
@@ -29,12 +26,10 @@ test("transform", () => {
   const inputPath = new URL("./transform/input.js", import.meta.url).pathname;
   const outputPath = new URL("./transform/output.js", import.meta.url).pathname;
 
-  const transformed = prettier.format(
-    babel.transformFileSync(inputPath, {
+  const transformed = babel.transformFileSync(inputPath, {
       configFile: false,
       plugins: [[thisPlugin, { polyfill: "import" }]]
-    }).code
-  );
+    }).code;
 
   if (!fs.existsSync(outputPath)) {
     console.info("Writing output file");

@@ -1,4 +1,4 @@
 node_modules
-test/index.compiled.js
-dist
+packages/babel-plugin/test/index.compiled.js
+**/dist
 .idea

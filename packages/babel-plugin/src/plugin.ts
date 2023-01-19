@@ -1,6 +1,5 @@
 // @ts-ignore
 import syntaxJSX from "@babel/plugin-syntax-jsx";
-// import { getInlinePolyfill, getExternalPolyfill } from "./polyfill.js";
 import type { NodePath, PluginObj } from "@babel/core";
 import type {
   BigIntLiteral,
@@ -26,7 +25,7 @@ import type {
 import type { Scope } from "@babel/traverse";
 import * as t from "@babel/types";
 
-import { ESXSlot, WellKnownSlots } from "./esx.js";
+import { ESXSlot, WellKnownSlots } from "@es-esx/esx";
 
 type SlotName = WellKnownSlots | null | StringLiteral
 
