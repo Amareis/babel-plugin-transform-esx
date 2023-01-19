@@ -1,5 +1,5 @@
 {
-  "name": "@ungap/babel-plugin-transform-esx",
+  "name": "@es-esx/esx",
   "version": "0.4.3",
   "description": "An ESX transformer as implementation reference.",
   "main": "dist/plugin.js",
@@ -14,18 +14,18 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/ungap/babel-plugin-transform-esx.git"
+    "url": "git+https://github.com/es-esx/esx.git"
   },
   "keywords": [
     "ESX",
     "polyfill"
   ],
-  "author": "Nicolò Ribaudo (https://github.com/nicolo-ribaudo)",
+  "author": "Ivan Plesskih",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/ungap/babel-plugin-transform-esx/issues"
+    "url": "https://github.com/es-esx/esx/issues"
   },
-  "homepage": "https://github.com/ungap/babel-plugin-transform-esx#readme",
+  "homepage": "https://github.com/es-esx/esx#readme",
   "devDependencies": {
     "@babel/cli": "^7.19.3",
     "@babel/core": "^7.20.5",
@@ -35,9 +35,7 @@
     "typescript": "^4.9.4"
   },
   "dependencies": {
-    "@babel/plugin-syntax-jsx": "^7.18.6",
-    "@ungap/esxtoken": "^0.4.2",
-    "umeta": "^0.2.4"
+    "@babel/plugin-syntax-jsx": "^7.18.6"
   },
   "peerDependencies": {
     "@babel/core": "^7.20.2"

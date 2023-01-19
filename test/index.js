@@ -49,7 +49,7 @@ test("transform", () => {
     }
   }
 });
-/*
+
 test("'polyfill' option", () => {
   const withOpts = (options) =>
     babel.transformSync("<div />;", {
@@ -57,29 +57,21 @@ test("'polyfill' option", () => {
       plugins: [[thisPlugin, options]]
     }).code;
 
-  assert.strictEqual(
-    withOpts({ polyfill: false }),
-    `var _templateReference = {};\n` +
-    `new ESXToken(_templateReference, 3, ESXToken._, ESXToken._, "div", "div");`
-  );
+  const str = 'var _esx = new ESX(new ESXElement([ESXSlot.createTag("div")], [], []));\n'
 
   assert.strictEqual(
-    withOpts({ polyfill: "inline" }),
-    `var _templateReference = {};\n` +
-    `globalThis.ESXToken || (globalThis.ESXToken = class ESXToken { static ATTRIBUTE = 1; static COMPONENT = 2; static ELEMENT = 3; static FRAGMENT = 4; static INTERPOLATION = 5; static STATIC = 6; static _ = Object.freeze([]); static a = (dynamic, name, value) => ({ type: 1, dynamic, name, value }); static b = (type, value) => ({ type, value }); constructor(id, type, attributes, children, name, value) { this.id = id; this.type = type; this.attributes = attributes; this.children = children; this.name = name; this.value = value; } get properties() { const { attributes } = this; if (attributes.length) { const properties = {}; for (const entry of attributes) { if (entry.type < 2) properties[entry.name] = entry.value;else Object.assign(properties, entry.value); } return properties; } return null; } });\n` +
-    `new ESXToken(_templateReference, 3, ESXToken._, ESXToken._, "div", "div");`
+    withOpts({ polyfill: false }),
+    str + `_esx;`
   );
 
   assert.strictEqual(
     withOpts({ polyfill: "import" }),
-    `var _templateReference = {};\n` +
-    `import ESXToken from "@ungap/esxtoken";\n` +
-    `new ESXToken(_templateReference, 3, ESXToken._, ESXToken._, "div", "div");`
+      str + `import { ESXSlot, ESXElement, ESX } from "@es-esx/esx";\n_esx;`
   );
 
   // Default is import
   assert.strictEqual(withOpts({}), withOpts({ polyfill: "import" }));
-});*/
+});
 
 test("type of element attributes", () => {
   const cases = [

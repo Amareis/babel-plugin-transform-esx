@@ -1,0 +1,31 @@
+= ESX implementation
+
+An link:https://gist.github.com/WebReflection/2d64f34cf58daa812ec876242c91a97c[ESX] transformer as implementation reference.
+
+Heavily based on https://github.com/ungap/babel-plugin-transform-esx
+
+== Experimental
+
+https://es.discourse.group/t/proposal-esx-as-core-js-feature/1511/43[Current ESX proposal] is WIP.
+
+== Usage
+
+[source,sh]
+----
+# required only with polyfill "import" (default)
+npm i --save @es-esx/esx
+
+# required to transform ESX
+npm i --save-dev @es-esx/babel-plugin
+----
+
+[source,jsonc]
+----
+// babel.config.json
+{
+  "plugins": [["@es-esx/babel-plugin", { "polyfill": "import" }]]
+}
+----
+
+Where the `"polyfill"` option can be `false` or `"import"` (default).
+

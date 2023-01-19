@@ -20,7 +20,8 @@ import type {
   NullLiteral,
   NumericLiteral,
   StringLiteral,
-  TemplateLiteral
+  TemplateLiteral,
+  Program
 } from "@babel/types";
 import type { Scope } from "@babel/traverse";
 import * as t from "@babel/types";
@@ -31,23 +32,41 @@ type SlotName = WellKnownSlots | null | StringLiteral
 
 export default function(
   { template }: typeof import("@babel/core"),
-  { polyfill = "import" }: { polyfill?: "import" | "inline" | false } = {}
+  { polyfill = "import" }: { polyfill?: "import" | false } = {}
 ): PluginObj {
-  if (polyfill !== false && polyfill !== "inline" && polyfill !== "import") {
+  if (polyfill !== false && polyfill !== "import") {
     throw new Error(
-      `The .polyfill option must be one of: false, "inline", "import".`
+      `The .polyfill option must be one of: false, "import".`
     );
+  }
+
+  const injected = new WeakSet();
+
+  function ensurePolyfill(path: NodePath) {
+    const programPath = path.scope.getProgramParent().path as NodePath<Program>;
+    if (injected.has(programPath.node))
+      return;
+
+    injected.add(programPath.node);
+
+    if (programPath.scope.hasBinding("ESX")) return;
+    programPath.unshiftContainer(
+      "body",
+      template.statement.ast`import {ESXSlot, ESXElement, ESX} from "@es-esx/esx";`
+    );
+  }
+
+  function transform(path: JsxPath) {
+    transformRoot(path);
+    if (polyfill)
+      ensurePolyfill(path);
   }
 
   return {
     inherits: syntaxJSX.default,
     visitor: {
-      JSXElement(path) {
-        transformRoot(path);
-      },
-      JSXFragment(path) {
-        transformRoot(path);
-      }
+      JSXElement: transform,
+      JSXFragment: transform
     }
   };
 }
@@ -83,15 +102,15 @@ class Dynamics {
     return refs;
   }
 
-  hardEnd(): {refs: Identifier[], inits: Expression[]} {
-    const refs = this.endElement()
+  hardEnd(): { refs: Identifier[], inits: Expression[] } {
+    const refs = this.endElement();
     if (this.elemRefs.length)
       throw new Error("Unbalanced elements");
-    const inits = this.inits
+    const inits = this.inits;
     if (refs.length !== inits.length)
       throw new Error("Dynamics invariant error");
-    this.inits = []
-    return {refs, inits}
+    this.inits = [];
+    return { refs, inits };
   }
 }
 
@@ -101,9 +120,9 @@ function transformRoot(path: JsxPath) {
   const scope = path.scope.getProgramParent();
 
   const dynamics = new Dynamics(scope);
-  dynamics.beginElement()
+  dynamics.beginElement();
   const root = transformElement(path, dynamics);
-  const {refs, inits} = dynamics.hardEnd();
+  const { refs, inits } = dynamics.hardEnd();
 
   let esx;
   if (refs.length) {
