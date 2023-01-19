@@ -1,15 +1,15 @@
-var _esx = new ESX(new ESXTag([ESXSlot.createElement("div")], [], [])),
+var _esx = new ESX(new ESXElement([ESXSlot.createTag("div")], [], [])),
   _dyn,
   _dyn2,
-  _root = new ESXTag(
+  _root = new ESXElement(
     [
-      ESXSlot.createElement("div"),
+      ESXSlot.createTag("div"),
       new ESXSlot("id", "a"),
       new ESXSlot("title", "b"),
     ],
     [
-      new ESXTag(
-        [ESXSlot.createElement("p")],
+      new ESXElement(
+        [ESXSlot.createTag("p")],
         [ESXSlot.createText("c"), (_dyn = new ESXSlot(null))],
         [_dyn]
       ),
@@ -22,7 +22,7 @@ var _esx = new ESX(new ESXTag([ESXSlot.createElement("div")], [], [])),
   _dyn3,
   _dyn4,
   _dyn5,
-  _root2 = new ESXTag(
+  _root2 = new ESXElement(
     [],
     [
       new ESXSlot(null, "A"),
@@ -35,16 +35,16 @@ var _esx = new ESX(new ESXTag([ESXSlot.createElement("div")], [], [])),
     [_dyn3, _dyn4, _dyn5]
   ),
   _dyn6,
-  _root3 = new ESXTag(
-    [ESXSlot.createElement("div")],
+  _root3 = new ESXElement(
+    [ESXSlot.createTag("div")],
     [(_dyn6 = new ESXSlot(null))],
     [_dyn6]
   ),
   _dyn7,
   _dyn8,
-  _root4 = new ESXTag(
+  _root4 = new ESXElement(
     [
-      (_dyn7 = ESXSlot.createElement()),
+      (_dyn7 = ESXSlot.createTag()),
       new ESXSlot("a", "a"),
       (_dyn8 = ESXSlot.createSpread()),
     ],
@@ -52,7 +52,7 @@ var _esx = new ESX(new ESXTag([ESXSlot.createElement("div")], [], [])),
     [_dyn7, _dyn8]
   );
 // noinspection ES6UnusedImports
-import { ESXSlot, ESXTag, ESX } from "../../dist/esx.js";
+import { ESXSlot, ESXElement, ESX } from "../../dist/esx.js";
 const div = _esx;
 const div2 = new ESX(_root, [div, div]);
 function MyComponent(...args) {

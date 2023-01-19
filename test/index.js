@@ -4,7 +4,7 @@ import * as prettier from "prettier";
 import babel from "@babel/core";
 import thisPlugin from "../dist/plugin.js";
 // noinspection ES6UnusedImports
-import { ESXSlot, ESXTag, ESX } from "../dist/esx.js";
+import { ESXSlot, ESXElement, ESX } from "../dist/esx.js";
 
 function test(desc, run) {
   try {

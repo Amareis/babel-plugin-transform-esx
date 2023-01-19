@@ -1,23 +1,23 @@
 type OptionalValue = [value?: unknown]
 
 export type WellKnownSlots =
-  typeof ESXSlot.ELEMENT_SLOT | typeof ESXSlot.SPREAD_SLOT | typeof ESXSlot.TEXT_SLOT
+  typeof ESXSlot.TAG_SLOT | typeof ESXSlot.SPREAD_SLOT | typeof ESXSlot.TEXT_SLOT
 
 type SlotName = null | string | WellKnownSlots
 
 export class ESXSlot {
-  static readonly ELEMENT_SLOT: unique symbol = Symbol("ESX.ELEMENT_SLOT");
+  static readonly TAG_SLOT: unique symbol = Symbol("ESX.TAG_SLOT");
   static readonly SPREAD_SLOT: unique symbol = Symbol("ESX.SPREAD_SLOT");
   static readonly TEXT_SLOT: unique symbol = Symbol("ESX.TEXT_SLOT");
 
-  static readonly createElement = (...args: OptionalValue) => new ESXSlot(ESXSlot.ELEMENT_SLOT, ...args);
+  static readonly createTag = (...args: OptionalValue) => new ESXSlot(ESXSlot.TAG_SLOT, ...args);
   static readonly createSpread = (...args: OptionalValue) => new ESXSlot(ESXSlot.SPREAD_SLOT, ...args);
   static readonly createText = (text: string) => new ESXSlot(ESXSlot.TEXT_SLOT, text);
 
   readonly isDynamic: boolean;
-  readonly isElementSlot = this.name === ESXSlot.ELEMENT_SLOT;
-  readonly isSpreadSlot = this.name === ESXSlot.SPREAD_SLOT;
-  readonly isTextSlot = this.name === ESXSlot.TEXT_SLOT;
+  readonly isTag = this.name === ESXSlot.TAG_SLOT;
+  readonly isSpread = this.name === ESXSlot.SPREAD_SLOT;
+  readonly isText = this.name === ESXSlot.TEXT_SLOT;
 
   readonly #value: unknown;
 
@@ -26,8 +26,8 @@ export class ESXSlot {
   constructor(readonly name: SlotName, ...args: OptionalValue) {
     this.isDynamic = args.length === 0;
 
-    if (this.isDynamic && this.isTextSlot)
-      throw new TypeError("Static text slot cannot be dynamic");
+    if (this.isDynamic && this.isText)
+      throw new TypeError("Text slot cannot be dynamic");
 
     if (!this.isDynamic)
       this.#value = args[0];
@@ -40,7 +40,7 @@ export class ESXSlot {
   }
 }
 
-export class ESXTag {
+export class ESXElement {
   readonly isDynamic: boolean;
   readonly isFragment: boolean;
 
@@ -48,7 +48,7 @@ export class ESXTag {
 
   constructor(
     readonly slots: readonly ESXSlot[] = [],
-    readonly children: readonly (ESXSlot | ESXTag)[] = [],
+    readonly children: readonly (ESXSlot | ESXElement)[] = [],
     /** @internal */
     dynamics?: ESXSlot[]
   ) {
@@ -70,12 +70,15 @@ export class ESXTag {
 export class ESX {
   readonly isDynamic: boolean;
 
+  readonly #values: readonly unknown[];
+
   constructor(
-    readonly root: ESXTag,
-    private readonly dSlotsValues: readonly unknown[] = []
+    readonly root: ESXElement,
+    values = []
   ) {
-    if (dSlotsValues.length !== root.dynamicSlots.length)
-      throw new TypeError("Array of slots values must be same length as root dynamicSlots length");
+    if (values.length !== root.dynamicSlots.length)
+      throw new TypeError("Array of slots values must be same length as root dynamicSlots");
+    this.#values = values.slice();
     this.isDynamic = root.isDynamic;
   }
 
@@ -85,34 +88,12 @@ export class ESX {
     const i = this.root.dynamicSlots.indexOf(slot);
     if (i === -1)
       throw new TypeError("Slot must be in root");
-    return this.dSlotsValues[i];
+    return this.#values[i];
   }
 
   getSlotValue(slot: ESXSlot): unknown {
     if (!slot.isDynamic)
       return slot.value;
     return this.getDynamicSlotValue(slot);
-  }
-
-  bind(): ESXTag {
-    return this.bindTag(this.root);
-  }
-
-  private bindSlot(slot: ESXSlot): ESXSlot {
-    if (!slot.isDynamic)
-      return slot;
-    return new ESXSlot(slot.name, this.getDynamicSlotValue(slot));
-  }
-
-  private bindTag(elem: ESXTag): ESXTag {
-    if (!elem.isDynamic)
-      return elem;
-    return new ESXTag(
-      elem.slots.map(a => this.bindSlot(a)),
-      elem.children.map(c => c instanceof ESXSlot
-        ? this.bindSlot(c)
-        : this.bindTag(c)
-      )
-    );
   }
 }

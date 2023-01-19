@@ -55,7 +55,7 @@ export default function(
 class Dynamics {
   private inits: Expression[] = [];
 
-  private tagRefs: Identifier[][] = [];
+  private elemRefs: Identifier[][] = [];
 
   constructor(readonly scope: Scope) {
   }
@@ -64,29 +64,29 @@ class Dynamics {
     const ref = this.scope.generateUidIdentifier("dyn");
     this.scope.push({ id: t.cloneNode(ref) });
 
-    this.tagRefs[0].push(t.cloneNode(ref));
+    this.elemRefs[0].push(t.cloneNode(ref));
 
     this.inits.push(init);
     return t.assignmentExpression("=", ref, slot);
   }
 
-  beginTag() {
-    this.tagRefs.unshift([]);
+  beginElement() {
+    this.elemRefs.unshift([]);
   }
 
-  endTag(): Identifier[] {
-    const refs = this.tagRefs.shift();
+  endElement(): Identifier[] {
+    const refs = this.elemRefs.shift();
     if (!refs)
-      throw new Error("Unbalanced tags");
-    if (this.tagRefs.length)
-      this.tagRefs[0].push(...refs.map(n => t.cloneNode(n)));
+      throw new Error("Unbalanced elements");
+    if (this.elemRefs.length)
+      this.elemRefs[0].push(...refs.map(n => t.cloneNode(n)));
     return refs;
   }
 
   hardEnd(): {refs: Identifier[], inits: Expression[]} {
-    const refs = this.endTag()
-    if (this.tagRefs.length)
-      throw new Error("Unbalanced tags");
+    const refs = this.endElement()
+    if (this.elemRefs.length)
+      throw new Error("Unbalanced elements");
     const inits = this.inits
     if (refs.length !== inits.length)
       throw new Error("Dynamics invariant error");
@@ -101,18 +101,18 @@ function transformRoot(path: JsxPath) {
   const scope = path.scope.getProgramParent();
 
   const dynamics = new Dynamics(scope);
-  dynamics.beginTag()
-  const tag = transformElement(path, dynamics);
+  dynamics.beginElement()
+  const root = transformElement(path, dynamics);
   const {refs, inits} = dynamics.hardEnd();
 
   let esx;
   if (refs.length) {
     const ref = scope.generateUidIdentifier("root");
-    scope.push({ id: t.cloneNode(ref), init: tag });
+    scope.push({ id: t.cloneNode(ref), init: root });
     esx = newInstance(ref, inits);
   } else {
     const ref = scope.generateUidIdentifier("esx");
-    scope.push({ id: t.cloneNode(ref), init: newInstance(tag) });
+    scope.push({ id: t.cloneNode(ref), init: newInstance(root) });
     esx = ref;
   }
 
@@ -173,8 +173,8 @@ function createSlot(name: SlotName, expr?: Expression): Expression {
     );
   }
 
-  if (name === ESXSlot.ELEMENT_SLOT)
-    return slotHelper("createElement", expr);
+  if (name === ESXSlot.TAG_SLOT)
+    return slotHelper("createTag", expr);
   else if (name === ESXSlot.SPREAD_SLOT)
     return slotHelper("createSpread", expr);
   else if (name === ESXSlot.TEXT_SLOT)
@@ -197,7 +197,7 @@ const isElementPath = (path: JsxPath): path is NodePath<JSXElement> =>
   t.isJSXElement(path.node);
 
 function transformElement(path: JsxPath, dynamics: Dynamics): Expression {
-  dynamics.beginTag();
+  dynamics.beginElement();
 
   let attrs: Expression[] = [];
   if (isElementPath(path)) {
@@ -214,17 +214,17 @@ function transformElement(path: JsxPath, dynamics: Dynamics): Expression {
       element = jsxToJS(jsxElementName);
     }
     attrs = [
-      newSlot(ESXSlot.ELEMENT_SLOT, element, dynamics),
+      newSlot(ESXSlot.TAG_SLOT, element, dynamics),
       ...transformAttributesList(path.get("openingElement"), dynamics)
     ];
   }
   const children = getChildren(path, dynamics);
 
-  const refs = dynamics.endTag();
+  const refs = dynamics.endElement();
 
   let args = [attrs, children, refs].map(a => t.arrayExpression(a));
 
-  return t.newExpression(t.identifier("ESXTag"), args);
+  return t.newExpression(t.identifier("ESXElement"), args);
 }
 
 const transformAttributesList = (path: NodePath<JSXOpeningElement>, dynamics: Dynamics) =>

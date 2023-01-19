@@ -1,5 +1,5 @@
 // noinspection ES6UnusedImports
-import { ESXSlot, ESXTag, ESX } from "../../dist/esx.js";
+import { ESXSlot, ESXElement, ESX } from "../../dist/esx.js";
 
 const div = <div />;
 
