@@ -29,6 +29,11 @@ import { ESXSlot, WellKnownSlots } from "@es-esx/esx";
 
 type SlotName = WellKnownSlots | null | StringLiteral
 
+/*TODO:
+lazy init for roots
+don't mess with existing imports from @es-esx
+ */
+
 export default function(
   { template }: typeof import("@babel/core"),
   { polyfill = "import" }: { polyfill?: "import" | false } = {}
