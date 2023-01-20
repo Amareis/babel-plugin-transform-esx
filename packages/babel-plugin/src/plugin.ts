@@ -80,13 +80,9 @@ class Dynamics {
 
   private elemRefs: Identifier[][] = [];
 
-  constructor(readonly scope: Scope) {
-  }
 
   bind(slot: Expression, init: Expression): Expression {
-    const ref = this.scope.generateUidIdentifier("dyn");
-    this.scope.push({id: t.cloneNode(ref)});
-
+    const ref = t.identifier(`dyn${this.inits.length}`);
     this.elemRefs[0].push(t.cloneNode(ref));
 
     this.inits.push(init);
@@ -123,30 +119,35 @@ type JsxPath = NodePath<JSXElement | JSXFragment>
 function transformRoot(path: JsxPath) {
   const scope = path.scope.getProgramParent();
 
-  const dynamics = new Dynamics(scope);
+  const dynamics = new Dynamics();
   dynamics.beginElement();
   const root = transformElement(path, dynamics);
   const {refs, inits} = dynamics.hardEnd();
 
   let esx;
   if (refs.length) {
-    const refInit = wrapLazy(scope, "root", root);
+    const refInit = wrapLazy(scope, refs, "root", root);
     esx = newInstance(refInit, inits);
   } else {
-    esx = wrapLazy(scope, "esx", newInstance(root));
+    esx = wrapLazy(scope, refs, "esx", newInstance(root));
   }
 
   path.replaceWith(esx);
 }
 
-function wrapLazy(scope: Scope, name: string, expr: Expression): Expression {
+function wrapLazy(scope: Scope, refs: Identifier[], name: string, expr: Expression): Expression {
   const ref = scope.generateUidIdentifier(name);
   const create = scope.generateUidIdentifier('create_' + name);
   scope.push({id: t.cloneNode(ref)});
   scope.push({
     id: t.cloneNode(create),
     init: t.arrowFunctionExpression([],
-      t.assignmentExpression('=', t.cloneNode(ref), expr)
+      t.blockStatement([
+          t.expressionStatement(t.assignmentExpression('=', t.cloneNode(create), t.nullLiteral())),
+          ...refs.map(r => t.variableDeclaration("var", [t.variableDeclarator(r)])),
+          t.returnStatement(t.assignmentExpression('=', t.cloneNode(ref), expr))
+      ])
+
     )});
   return t.logicalExpression('||', t.cloneNode(ref), t.callExpression(create, []))
 }

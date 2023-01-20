@@ -52,7 +52,12 @@ test("'polyfill' option", () => {
       plugins: [[thisPlugin, options]]
     }).code;
 
-  const str = `var _esx,\n  _create_esx = () => _esx = new ESX(new ESXElement([ESXSlot.createTag("div")], [], []));\n`
+  const str = `var _esx,
+  _create_esx = () => {
+    _create_esx = null;
+    return _esx = new ESX(new ESXElement([ESXSlot.createTag("div")], [], []));
+  };
+`
 
   const esx = `_esx || _create_esx();`
 
