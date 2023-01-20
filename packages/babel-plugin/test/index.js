@@ -27,9 +27,9 @@ test("transform", () => {
   const outputPath = new URL("./transform/output.js", import.meta.url).pathname;
 
   const transformed = babel.transformFileSync(inputPath, {
-      configFile: false,
-      plugins: [[thisPlugin, { polyfill: "import" }]]
-    }).code;
+    configFile: false,
+    plugins: [[thisPlugin, {polyfill: "import"}]]
+  }).code;
 
   if (!fs.existsSync(outputPath)) {
     console.info("Writing output file");
@@ -55,59 +55,59 @@ test("'polyfill' option", () => {
   const str = 'var _esx = new ESX(new ESXElement([ESXSlot.createTag("div")], [], []));\n'
 
   assert.strictEqual(
-    withOpts({ polyfill: false }),
+    withOpts({polyfill: false}),
     str + `_esx;`
   );
 
   assert.strictEqual(
-    withOpts({ polyfill: "import" }),
-      str + `import { ESXSlot, ESXElement, ESX } from "@es-esx/esx";\n_esx;`
+    withOpts({polyfill: "import"}),
+    str + `import { ESXSlot, ESXElement, ESX } from "@es-esx/esx";\n_esx;`
   );
 
   // Default is import
-  assert.strictEqual(withOpts({}), withOpts({ polyfill: "import" }));
+  assert.strictEqual(withOpts({}), withOpts({polyfill: "import"}));
 });
 
 test("type of element attributes", () => {
   const cases = [
-    ["<div a />", <div a />, [{ name: "a", value: true }]],
-    ["<div a='a' />", <div a="a" />, [{ name: "a", value: "a" }]],
-    ["<div a={1} />", <div a={1} />, [{ name: "a", value: 1 }]],
-    ["<div a={1} b />", <div a={1} b />, [{
+    ["<div a />", <div a/>, [{name: "a", value: true}]],
+    ["<div a='a' />", <div a="a"/>, [{name: "a", value: "a"}]],
+    ["<div a={1} />", <div a={1}/>, [{name: "a", value: 1}]],
+    ["<div a={1} b />", <div a={1} b/>, [{
       name: "a",
       value: 1
-    }, { name: "b", value: true }]],
-    ["<div a b={1} />", <div a b={1} />, [{
+    }, {name: "b", value: true}]],
+    ["<div a b={1} />", <div a b={1}/>, [{
       name: "a",
       value: true
-    }, { name: "b", value: 1 }]],
-    ["<div a={1} b={2} />", <div a={1} b={2} />, [{
+    }, {name: "b", value: 1}]],
+    ["<div a={1} b={2} />", <div a={1} b={2}/>, [{
       name: "a",
       value: 1
-    }, { name: "b", value: 2 }]],
-    ["<div {...test} />", <div {...test} />, [{ dyn: test }]],
+    }, {name: "b", value: 2}]],
+    ["<div {...test} />", <div {...test} />, [{dyn: test}]],
     ["<div a {...test} />", <div a {...test} />, [{
       name: "a",
       value: true
-    }, { dyn: test }]],
-    ["<div {...test} a />", <div {...test} a />, [{
+    }, {dyn: test}]],
+    ["<div {...test} a />", <div {...test} a/>, [{
       dyn: test
-    }, { name: "a", value: true }]],
+    }, {name: "a", value: true}]],
     ["<div a={1} {...test} />", <div a={1} {...test} />, [{
       name: "a",
       value: 1
-    }, { dyn: test }]],
-    ["<div {...test} a={1} />", <div {...test} a={1} />, [{
+    }, {dyn: test}]],
+    ["<div {...test} a={1} />", <div {...test} a={1}/>, [{
       dyn: test
-    }, { name: "a", value: 1 }]]
+    }, {name: "a", value: 1}]]
   ];
 
   for (const [desc, esx, expectations] of cases) {
-    const { root: { slots } } = esx;
+    const {root: {slots}} = esx;
     assert.strictEqual(slots.length, expectations.length + 1, desc);
     for (let i = 1; i < slots.length; i++) {
       const attribute = slots[i];
-      const { dyn, value, name = ESXSlot.SPREAD_SLOT } = expectations[i - 1];
+      const {dyn, value, name = ESXSlot.SPREAD_SLOT} = expectations[i - 1];
       assert.strictEqual(attribute.name, name, desc);
       if (value)
         assert.strictEqual(attribute.value, value, desc);
@@ -120,7 +120,7 @@ test("type of element attributes", () => {
 test("no children", () => {
   assert.strictEqual(
     (
-      <div />
+      <div/>
     ).root.children.length,
     0
   );
@@ -130,7 +130,7 @@ test("newlines in children are collapsed", () => {
   assert.strictEqual(
     (
       <div>
-        <span />
+        <span/>
       </div>
     ).root.children.length,
     1
@@ -139,8 +139,8 @@ test("newlines in children are collapsed", () => {
   assert.strictEqual(
     (
       <div>
-        <span />
-        <span />
+        <span/>
+        <span/>
       </div>
     ).root.children.length,
     2
@@ -149,7 +149,7 @@ test("newlines in children are collapsed", () => {
   assert.strictEqual(
     (
       <div>
-        <span /> <span />
+        <span/> <span/>
       </div>
     ).root.children.length,
     3
@@ -157,21 +157,21 @@ test("newlines in children are collapsed", () => {
 });
 
 test("supports xml namespaces", () => {
-  const { root } = <xml:svg xmlns:xlink="http://www.w3.org/1999/xlink" />;
+  const {root} = <xml:svg xmlns:xlink="http://www.w3.org/1999/xlink"/>;
 
   assert.strictEqual(root.slots[0].value, "xml:svg");
   assert.strictEqual(root.slots[1].name, "xmlns:xlink");
 });
 
 test("supports member expressions", () => {
-  const some = { Elem: { test: {} } };
-  const esx = <some.Elem.test />;
+  const some = {Elem: {test: {}}};
+  const esx = <some.Elem.test/>;
 
   assert.strictEqual(esx.getDynamicSlotValue(esx.root.slots[0]), some.Elem.test);
 });
 
 test("supports dashed names", () => {
-  const { root } = <some-Elem_test />;
+  const {root} = <some-Elem_test/>;
 
   assert.strictEqual(root.slots[0].value, "some-Elem_test");
 });
@@ -179,8 +179,8 @@ test("supports dashed names", () => {
 test("fragments", () => {
   const frag = () => (
     <>
-      <p />
-      <div />
+      <p/>
+      <div/>
     </>
   );
 
@@ -189,5 +189,39 @@ test("fragments", () => {
   assert.strictEqual(frag().root.slots.length, 0);
   assert.strictEqual(frag().root.children.length, 2);
 });
+
+test("references", () => {
+  function MyComponent(...args) {
+    return <>
+      {args.map(a => <div>{a}</div>)}
+    </>
+  }
+
+  const esx1 = MyComponent(1, 2, 3)
+  const esx2 = MyComponent(4, 5, 6)
+
+  assert.notStrictEqual(esx1, esx2)
+  assert.strictEqual(esx1.root, esx2.root)
+
+  const {root} = esx1
+
+  const arr1 = esx1.getDynamicSlotValue(root.children[0])
+  const arr2 = esx2.getDynamicSlotValue(root.children[0])
+
+  const root2 = arr1[0].root
+
+  function check(arr, vals) {
+    assert.ok(Array.isArray(arr))
+    const v = arr.map(el => {
+      assert.ok(el instanceof ESX);
+      assert.strictEqual(el.root, root2);
+      return el.getDynamicSlotValue(root2.children[0])
+    });
+    assert.deepEqual(v, vals);
+  }
+
+  check(arr1, [1, 2, 3])
+  check(arr2, [4, 5, 6])
+})
 
 test.finish();
