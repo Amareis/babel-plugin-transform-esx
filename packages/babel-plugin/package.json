@@ -1,6 +1,6 @@
 {
   "name": "@es-esx/babel-plugin",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Babel plugin for ESX",
   "main": "dist/plugin.js",
   "type": "module",
