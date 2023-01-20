@@ -1,9 +1,9 @@
 {
   "private": true,
-  "description": "An ESX transformer as implementation reference.",
   "type": "module",
   "workspaces": [
-    "./packages/*"
+    "./packages/esx",
+    "./packages/babel-plugin"
   ],
   "repository": {
     "type": "git",
