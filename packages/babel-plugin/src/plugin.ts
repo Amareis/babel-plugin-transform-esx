@@ -1,6 +1,6 @@
 // @ts-ignore
 import syntaxJSX from "@babel/plugin-syntax-jsx";
-import type { NodePath, PluginObj } from "@babel/core";
+import type {NodePath, PluginObj} from "@babel/core";
 import type {
   BigIntLiteral,
   BooleanLiteral,
@@ -22,10 +22,10 @@ import type {
   TemplateLiteral,
   Program
 } from "@babel/types";
-import type { Scope } from "@babel/traverse";
+import type {Scope} from "@babel/traverse";
 import * as t from "@babel/types";
 
-import { ESXSlot, WellKnownSlots } from "@es-esx/esx";
+import {ESXSlot, WellKnownSlots} from "@es-esx/esx";
 
 type SlotName = WellKnownSlots | null | StringLiteral
 
@@ -34,9 +34,9 @@ lazy init for roots
 don't mess with existing imports from @es-esx
  */
 
-export default function(
-  { template }: typeof import("@babel/core"),
-  { polyfill = "import" }: { polyfill?: "import" | false } = {}
+export default function (
+  {template}: typeof import("@babel/core"),
+  {polyfill = "import"}: { polyfill?: "import" | false } = {}
 ): PluginObj {
   if (polyfill !== false && polyfill !== "import") {
     throw new Error(
@@ -85,7 +85,7 @@ class Dynamics {
 
   bind(slot: Expression, init: Expression): Expression {
     const ref = this.scope.generateUidIdentifier("dyn");
-    this.scope.push({ id: t.cloneNode(ref) });
+    this.scope.push({id: t.cloneNode(ref)});
 
     this.elemRefs[0].push(t.cloneNode(ref));
 
@@ -114,7 +114,7 @@ class Dynamics {
     if (refs.length !== inits.length)
       throw new Error("Dynamics invariant error");
     this.inits = [];
-    return { refs, inits };
+    return {refs, inits};
   }
 }
 
@@ -126,20 +126,29 @@ function transformRoot(path: JsxPath) {
   const dynamics = new Dynamics(scope);
   dynamics.beginElement();
   const root = transformElement(path, dynamics);
-  const { refs, inits } = dynamics.hardEnd();
+  const {refs, inits} = dynamics.hardEnd();
 
   let esx;
   if (refs.length) {
-    const ref = scope.generateUidIdentifier("root");
-    scope.push({ id: t.cloneNode(ref), init: root });
-    esx = newInstance(ref, inits);
+    const refInit = wrapLazy(scope, "root", root);
+    esx = newInstance(refInit, inits);
   } else {
-    const ref = scope.generateUidIdentifier("esx");
-    scope.push({ id: t.cloneNode(ref), init: newInstance(root) });
-    esx = ref;
+    esx = wrapLazy(scope, "esx", newInstance(root));
   }
 
   path.replaceWith(esx);
+}
+
+function wrapLazy(scope: Scope, name: string, expr: Expression): Expression {
+  const ref = scope.generateUidIdentifier(name);
+  const create = scope.generateUidIdentifier('create_' + name);
+  scope.push({id: t.cloneNode(ref)});
+  scope.push({
+    id: t.cloneNode(create),
+    init: t.arrowFunctionExpression([],
+      t.assignmentExpression('=', t.cloneNode(ref), expr)
+    )});
+  return t.logicalExpression('||', t.cloneNode(ref), t.callExpression(create, []))
 }
 
 const newInstance = (e: Expression, inits?: Expression[]) =>
@@ -224,7 +233,7 @@ function transformElement(path: JsxPath, dynamics: Dynamics): Expression {
 
   let attrs: Expression[] = [];
   if (isElementPath(path)) {
-    const { node } = path;
+    const {node} = path;
     const jsxElementName = node.openingElement.name;
 
     let element;

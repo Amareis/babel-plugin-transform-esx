@@ -52,16 +52,18 @@ test("'polyfill' option", () => {
       plugins: [[thisPlugin, options]]
     }).code;
 
-  const str = 'var _esx = new ESX(new ESXElement([ESXSlot.createTag("div")], [], []));\n'
+  const str = `var _esx,\n  _create_esx = () => _esx = new ESX(new ESXElement([ESXSlot.createTag("div")], [], []));\n`
+
+  const esx = `_esx || _create_esx();`
 
   assert.strictEqual(
     withOpts({polyfill: false}),
-    str + `_esx;`
+    str + esx
   );
 
   assert.strictEqual(
     withOpts({polyfill: "import"}),
-    str + `import { ESXSlot, ESXElement, ESX } from "@es-esx/esx";\n_esx;`
+    str + `import { ESXSlot, ESXElement, ESX } from "@es-esx/esx";\n` + esx
   );
 
   // Default is import
