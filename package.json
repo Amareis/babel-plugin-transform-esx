@@ -3,7 +3,8 @@
   "type": "module",
   "workspaces": [
     "./packages/esx",
-    "./packages/babel-plugin"
+    "./packages/babel-plugin",
+    "./packages/esx-dom"
   ],
   "repository": {
     "type": "git",
